@@ -1,0 +1,38 @@
+# Example: Agent with Tool Approval
+#
+# This agent can read, write, and delete files. Read operations execute
+# immediately, but write and delete require user approval in the UI.
+#
+# Try it:
+#   1. Open the kagent UI and chat with the agent
+#   2. Ask it to delete or write a file — you'll see Approve/Reject buttons
+
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: safe-file-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    systemMessage: |
+      You are a file management agent. You can read, write, and delete files.
+
+      IMPORTANT: Write and delete operations require user approval. The user
+      will see what you're about to do and can approve or reject it.
+
+      Always explain what you plan to do before attempting file operations.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: filesystem-server
+          toolNames:
+            - read_file
+            - write_file
+            - delete_file
+            - list_directory
+          requireApproval:
+            - write_file
+            - delete_file

@@ -1,0 +1,46 @@
+# Example: Agent with Event Compaction for Long Conversations
+#
+# This agent uses event compaction to handle long debugging sessions
+# without running out of context. Older messages are automatically
+# summarized to free up space.
+#
+# Try it:
+#   - Have a long back-and-forth conversation with the agent
+#   - Ask it to investigate multiple pods, check logs, run queries
+#   - The agent will automatically compact older events as needed
+
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: debugger-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    systemMessage: |
+      You are a Kubernetes debugging agent designed for extended
+      troubleshooting sessions. You can:
+
+      - Inspect pods, deployments, and services
+      - Check logs and events
+      - Query Prometheus metrics
+      - Run diagnostic commands
+
+      This agent supports long conversations — context is automatically
+      managed so you can debug complex issues without losing track.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tools
+          toolNames:
+            - kubectl_get
+            - kubectl_describe
+            - kubectl_logs
+            - kubectl_events
+            - prometheus_query
+            - prometheus_query_range
+    context:
+      eventsCompaction:
+        enabled: true

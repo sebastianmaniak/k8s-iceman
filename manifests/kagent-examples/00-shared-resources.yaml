@@ -1,0 +1,18 @@
+# Shared resources for kagent example agents
+#
+# ModelConfig references the kagent-openai Secret created by
+# External Secrets Operator (Vault → ESO → K8s Secret).
+# No inline credentials — secrets are managed in Vault.
+
+---
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: gpt4o
+  namespace: kagent
+spec:
+  provider: OpenAI
+  model: gpt-4o
+  apiKeySecretRef:
+    name: kagent-openai
+    key: OPENAI_API_KEY

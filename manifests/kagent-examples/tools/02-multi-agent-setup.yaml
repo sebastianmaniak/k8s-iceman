@@ -1,0 +1,98 @@
+# Example: Multi-Agent Setup with Agent-as-Tool (A2A)
+#
+# This example shows how to use one agent as a tool for another.
+# The "coordinator" agent delegates specialized tasks to the
+# "k8s-specialist" and "monitoring-specialist" agents.
+
+---
+# Specialist Agent 1: Kubernetes Operations
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: k8s-specialist
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    systemMessage: |
+      You are a Kubernetes specialist agent. You focus exclusively on
+      Kubernetes resource management and troubleshooting.
+
+      When called by another agent, respond concisely with findings
+      and recommendations.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tools
+          toolNames:
+            - kubectl_get
+            - kubectl_describe
+            - kubectl_logs
+            - kubectl_events
+    a2aServer:
+      enabled: true
+---
+# Specialist Agent 2: Monitoring
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: monitoring-specialist
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    systemMessage: |
+      You are a monitoring specialist agent. You focus on metrics,
+      dashboards, and alerting.
+
+      When called by another agent, analyze the metrics and provide
+      clear summaries with actionable insights.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tools
+          toolNames:
+            - prometheus_query
+            - prometheus_query_range
+            - prometheus_labels
+            - prometheus_targets
+            - grafana_dashboards
+            - grafana_alerts
+    a2aServer:
+      enabled: true
+---
+# Coordinator Agent: Delegates to specialists
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: ops-coordinator
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    systemMessage: |
+      You are an operations coordinator agent. You have access to
+      specialist agents that you can delegate tasks to:
+
+      - k8s-specialist: For Kubernetes resource queries and management
+      - monitoring-specialist: For metrics, dashboards, and alerts
+
+      Your role is to:
+      1. Understand the user's request
+      2. Delegate to the appropriate specialist(s)
+      3. Synthesize their responses into a coherent answer
+      4. Recommend next steps
+
+      For complex issues, you may need to query multiple specialists
+      and correlate their findings.
+    tools:
+      # Use other agents as tools via A2A protocol
+      - type: Agent
+        agent:
+          name: k8s-specialist
+      - type: Agent
+        agent:
+          name: monitoring-specialist

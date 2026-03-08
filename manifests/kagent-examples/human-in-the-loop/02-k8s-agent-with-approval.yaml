@@ -1,0 +1,48 @@
+# Example: Kubernetes Agent with Approval on Destructive Operations
+#
+# This agent can query and manage Kubernetes resources. Read operations
+# (get, describe, logs) are free, but destructive operations (delete, apply)
+# require user approval.
+#
+# Try asking:
+#   - "List all pods in the default namespace" (runs immediately)
+#   - "Delete the nginx deployment" (pauses for approval)
+#   - "Scale the frontend deployment to 5 replicas" (pauses for approval)
+
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: safe-k8s-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    systemMessage: |
+      You are a Kubernetes cluster management agent. You help users
+      inspect and manage their Kubernetes resources.
+
+      Read operations (get, describe, logs, events) run automatically.
+      Destructive or mutating operations require user approval:
+        - kubectl_delete: Deleting resources
+        - kubectl_apply: Applying manifests
+        - kubectl_scale: Scaling deployments
+
+      Always explain the impact of destructive operations before attempting them.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tools
+          toolNames:
+            - kubectl_get
+            - kubectl_describe
+            - kubectl_logs
+            - kubectl_events
+            - kubectl_delete
+            - kubectl_apply
+            - kubectl_scale
+          requireApproval:
+            - kubectl_delete
+            - kubectl_apply
+            - kubectl_scale

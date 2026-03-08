@@ -1,0 +1,37 @@
+# Example: Agent with Skills from a Public Git Repository
+#
+# This agent loads skills (knowledge documents) from a public Git repository.
+# Skills are SKILL.md files that guide agent behavior for specific tasks.
+#
+# The skills init container clones the repo before the agent starts.
+
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: skilled-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    systemMessage: |
+      You are a skilled operations agent. Use the skills tool to discover
+      and load relevant knowledge before answering questions.
+
+      Always start by listing available skills, then load the most relevant
+      one for the user's question.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tools
+          toolNames:
+            - kubectl_get
+            - kubectl_describe
+            - kubectl_logs
+    skills:
+      gitRefs:
+        - url: https://github.com/kagent-dev/kagent.git
+          ref: main
+          path: docs
+          name: kagent-docs

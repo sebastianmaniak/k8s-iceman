@@ -1,0 +1,30 @@
+# Example: Agent with Long-Term Memory
+#
+# This agent uses vector-backed persistent memory to remember
+# important details across conversations. Memory is stored in
+# the kagent database with pgvector/SQLite vector support.
+
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: memory-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    systemMessage: |
+      You are a helpful assistant with long-term memory. You remember
+      important details from previous conversations.
+
+      When users share preferences, team information, or project details,
+      you'll automatically remember them for future conversations.
+
+      If a user asks about something you discussed before, check your
+      memory for relevant context.
+    memory:
+      enabled: true
+      embeddingProvider:
+        type: OpenAI
+        model: text-embedding-3-small
