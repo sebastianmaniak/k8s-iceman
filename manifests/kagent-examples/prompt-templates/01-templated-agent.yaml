@@ -1,0 +1,79 @@
+# Example: Agent with Prompt Templates
+#
+# This agent composes its system message from reusable prompt fragments
+# stored in ConfigMaps. It uses both built-in kagent templates and
+# custom templates.
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: team-prompts
+  namespace: kagent
+data:
+  sre-guidelines: |
+    ## SRE Guidelines
+
+    When investigating issues:
+    1. Check the error rate and latency metrics first
+    2. Review recent deployments (last 24 hours)
+    3. Check resource utilization (CPU, memory, disk)
+    4. Review pod restarts and OOMKills
+    5. Check for network policy changes
+
+    Severity levels:
+    - P1: Service down, all users affected
+    - P2: Degraded service, >10% users affected
+    - P3: Minor issue, <10% users affected
+    - P4: Cosmetic or low-impact issue
+
+  escalation-rules: |
+    ## Escalation Rules
+
+    - P1: Immediately notify on-call via PagerDuty
+    - P2: Create incident channel, notify team lead
+    - P3: Create ticket, assign to next sprint
+    - P4: Add to backlog
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: sre-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    promptTemplate:
+      dataSources:
+        - configMapRef:
+            name: kagent-builtin-prompts
+        - configMapRef:
+            name: team-prompts
+    systemMessage: |
+      You are {{.AgentName}}, an SRE agent operating in the
+      {{.AgentNamespace}} namespace.
+
+      {{include "kagent-builtin-prompts/safety-guardrails"}}
+
+      {{include "kagent-builtin-prompts/tool-usage-best-practices"}}
+
+      {{include "kagent-builtin-prompts/kubernetes-context"}}
+
+      {{include "team-prompts/sre-guidelines"}}
+
+      {{include "team-prompts/escalation-rules"}}
+
+      Your available tools: {{.ToolNames}}
+      Your available skills: {{.SkillNames}}
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tools
+          toolNames:
+            - kubectl_get
+            - kubectl_describe
+            - kubectl_logs
+            - kubectl_events
+            - prometheus_query
+            - prometheus_query_range

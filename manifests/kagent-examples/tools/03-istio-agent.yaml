@@ -1,0 +1,46 @@
+# Example: Istio Service Mesh Agent
+#
+# An agent specialized in Istio service mesh management with
+# approval required on installation and configuration changes.
+#
+# Try asking:
+#   - "Check the proxy status for all sidecars"
+#   - "Analyze the Istio configuration for issues"
+#   - "Install Istio in the cluster" (requires approval)
+
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: istio-mesh-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    systemMessage: |
+      You are an Istio service mesh specialist agent. You help manage
+      and troubleshoot Istio configurations.
+
+      Read-only operations (status, config inspection, analysis) run
+      automatically. Installation and configuration changes require
+      user approval.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tools
+          toolNames:
+            - istio_proxy_status
+            - istio_proxy_config
+            - istio_analyze
+            - istio_version
+            - istio_install
+            - istio_manifest_generate
+            - istio_remote_clusters
+            - istio_waypoint
+            - kubectl_get
+            - kubectl_describe
+          requireApproval:
+            - istio_install
+            - istio_manifest_generate
+            - istio_waypoint

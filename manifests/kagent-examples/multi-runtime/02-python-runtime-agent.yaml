@@ -1,0 +1,40 @@
+# Example: Agent Using the Python ADK Runtime (Default)
+#
+# The Python runtime is the default. It provides access to the full
+# Google ADK ecosystem and Python-based integrations.
+
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: python-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    runtime: python
+    modelConfig: gpt4o
+    systemMessage: |
+      You are a comprehensive operations agent running on the Python
+      ADK runtime with full framework support.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tools
+          toolNames:
+            - kubectl_get
+            - kubectl_describe
+            - kubectl_logs
+            - kubectl_events
+            - helm_list
+            - helm_upgrade
+          requireApproval:
+            - helm_upgrade
+    memory:
+      enabled: true
+      embeddingProvider:
+        type: OpenAI
+        model: text-embedding-3-small
+    context:
+      eventsCompaction:
+        enabled: true

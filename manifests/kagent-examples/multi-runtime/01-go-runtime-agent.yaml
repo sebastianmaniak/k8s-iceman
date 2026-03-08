@@ -1,0 +1,36 @@
+# Example: Agent Using the Go ADK Runtime
+#
+# This agent uses the Go ADK runtime for faster startup (~2 seconds vs ~15
+# seconds for Python). The Go runtime provides built-in tools for file
+# operations and shell commands.
+
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: fast-go-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    runtime: go
+    modelConfig: gpt4o
+    systemMessage: |
+      You are a fast-starting agent running on the Go ADK runtime.
+
+      You have built-in tools for:
+      - Reading files (with line numbers and pagination)
+      - Writing files
+      - Editing files via string replacement
+      - Running shell commands
+      - Discovering and loading skills
+
+      Use these tools to help users with file management and
+      operational tasks.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tools
+          toolNames:
+            - kubectl_get
+            - kubectl_describe

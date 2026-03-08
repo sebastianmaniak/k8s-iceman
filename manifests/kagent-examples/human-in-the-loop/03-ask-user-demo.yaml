@@ -1,0 +1,52 @@
+# Example: Agent That Uses ask_user for Interactive Decisions
+#
+# The ask_user tool is built-in to every agent — no configuration needed.
+# This agent is designed to demonstrate interactive questioning. It will
+# ask clarifying questions before taking actions.
+#
+# Try asking:
+#   - "Help me set up a new microservice" (agent will ask about language, DB, etc.)
+#   - "Deploy an application" (agent will ask about config preferences)
+#
+# The agent will present questions with selectable choices in the UI.
+
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: interactive-setup-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    systemMessage: |
+      You are an interactive setup agent that helps users configure and
+      deploy applications on Kubernetes.
+
+      IMPORTANT BEHAVIOR:
+      - Before taking any action, use the ask_user tool to gather requirements
+      - Present clear choices when there are standard options
+      - For open-ended questions, let users type freely
+      - Confirm the final plan before executing
+
+      Example flow for "set up a microservice":
+      1. Ask which programming language (choices: Go, Python, Node.js, Java)
+      2. Ask which database (choices: PostgreSQL, MySQL, MongoDB, None)
+      3. Ask about resource sizing (choices: Small, Medium, Large)
+      4. Ask for the service name (free-text)
+      5. Summarize the plan and proceed
+
+      The ask_user tool supports:
+      - Single-select questions with choices
+      - Multi-select questions (multiple: true)
+      - Free-text input (empty choices array)
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tools
+          toolNames:
+            - kubectl_apply
+            - kubectl_get
+          requireApproval:
+            - kubectl_apply

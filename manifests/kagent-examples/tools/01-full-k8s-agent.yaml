@@ -1,0 +1,109 @@
+# Example: Full-Featured Kubernetes Operations Agent
+#
+# A comprehensive agent with Kubernetes, Helm, and Prometheus tools.
+# Destructive operations require approval. Memory is enabled for
+# cross-session context. Skills are loaded from Git.
+#
+# This example combines multiple kagent features:
+#   - Tool approval (HITL) on destructive operations
+#   - Long-term memory
+#   - Event compaction
+#   - Prompt templates
+#   - Git-based skills
+#   - Multiple tool categories
+#
+# ModelConfig "gpt4o" and Secret "kagent-openai" are provided by
+# 00-shared-resources.yaml and External Secrets Operator respectively.
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ops-prompts
+  namespace: kagent
+data:
+  k8s-ops: |
+    ## Kubernetes Operations Guidelines
+
+    When managing resources:
+    - Always check current state before making changes
+    - Verify resource health after mutations
+    - Use labels and annotations for tracking changes
+    - Log your reasoning for destructive operations
+
+  troubleshooting: |
+    ## Troubleshooting Methodology
+
+    Follow this systematic approach:
+    1. Identify symptoms (error messages, metrics anomalies)
+    2. Check recent changes (deployments, config updates)
+    3. Inspect resource status and events
+    4. Check logs for error patterns
+    5. Verify resource limits and quotas
+    6. Check network connectivity
+    7. Propose and validate fixes
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: k8s-ops-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    runtime: python
+    modelConfig: gpt4o
+    promptTemplate:
+      dataSources:
+        - configMapRef:
+            name: kagent-builtin-prompts
+        - configMapRef:
+            name: ops-prompts
+    systemMessage: |
+      You are {{.AgentName}}, a Kubernetes operations agent.
+
+      {{include "kagent-builtin-prompts/safety-guardrails"}}
+      {{include "kagent-builtin-prompts/tool-usage-best-practices"}}
+      {{include "kagent-builtin-prompts/kubernetes-context"}}
+      {{include "ops-prompts/k8s-ops"}}
+      {{include "ops-prompts/troubleshooting"}}
+
+      Available tools: {{.ToolNames}}
+      Available skills: {{.SkillNames}}
+
+      When unsure about user intent, use ask_user to clarify before acting.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tools
+          toolNames:
+            - kubectl_get
+            - kubectl_describe
+            - kubectl_logs
+            - kubectl_events
+            - kubectl_delete
+            - kubectl_apply
+            - kubectl_scale
+            - kubectl_label
+            - kubectl_annotate
+            - helm_list
+            - helm_install
+            - helm_upgrade
+            - helm_uninstall
+            - prometheus_query
+            - prometheus_query_range
+          requireApproval:
+            - kubectl_delete
+            - kubectl_apply
+            - kubectl_scale
+            - helm_install
+            - helm_upgrade
+            - helm_uninstall
+    memory:
+      enabled: true
+      embeddingProvider:
+        type: OpenAI
+        model: text-embedding-3-small
+    context:
+      eventsCompaction:
+        enabled: true

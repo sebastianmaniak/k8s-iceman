@@ -1,0 +1,40 @@
+# Example: Agent with Skills from Both OCI Images and Git Repositories
+#
+# Combine OCI-based skills with Git-based skills. The init container
+# handles both sources in a single pass.
+
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: multi-source-skills-agent
+  namespace: kagent
+spec:
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    systemMessage: |
+      You are an expert operations agent with knowledge from multiple sources.
+      List your available skills first, then load the relevant ones.
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tools
+          toolNames:
+            - kubectl_get
+            - kubectl_describe
+            - kubectl_logs
+            - helm_list
+    skills:
+      # OCI image skills
+      refs:
+        - image: ghcr.io/kagent-dev/k8s-skills:latest
+
+      # Git repository skills
+      gitRefs:
+        - url: https://github.com/myorg/helm-best-practices.git
+          ref: main
+        - url: https://github.com/myorg/troubleshooting-guides.git
+          ref: v1.0
+          path: k8s
+          name: k8s-troubleshooting
