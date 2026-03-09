@@ -55,10 +55,10 @@ spec:
     modelConfig: gpt4o
     promptTemplate:
       dataSources:
-        - configMapRef:
-            name: kagent-builtin-prompts
-        - configMapRef:
-            name: ops-prompts
+        - kind: ConfigMap
+          name: kagent-builtin-prompts
+        - kind: ConfigMap
+          name: ops-prompts
     systemMessage: |
       You are {{.AgentName}}, a Kubernetes operations agent.
 
@@ -100,10 +100,7 @@ spec:
             - helm_upgrade
             - helm_uninstall
     memory:
-      enabled: true
-      embeddingProvider:
-        type: OpenAI
-        model: text-embedding-3-small
+      modelConfig: openai-embed
     context:
       eventsCompaction:
         enabled: true

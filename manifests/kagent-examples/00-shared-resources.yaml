@@ -16,3 +16,17 @@ spec:
   apiKeySecretRef:
     name: kagent-openai
     key: OPENAI_API_KEY
+
+---
+# Embedding model used for vector memory
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: openai-embed
+  namespace: kagent
+spec:
+  provider: OpenAI
+  model: text-embedding-3-small
+  apiKeySecretRef:
+    name: kagent-openai
+    key: OPENAI_API_KEY

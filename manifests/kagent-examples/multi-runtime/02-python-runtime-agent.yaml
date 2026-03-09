@@ -33,10 +33,7 @@ spec:
           requireApproval:
             - helm_upgrade
     memory:
-      enabled: true
-      embeddingProvider:
-        type: OpenAI
-        model: text-embedding-3-small
+      modelConfig: openai-embed
     context:
       eventsCompaction:
         enabled: true
