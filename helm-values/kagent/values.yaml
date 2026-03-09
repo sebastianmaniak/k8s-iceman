@@ -53,3 +53,12 @@ agents:
     enabled: true
   observability-agent:
     enabled: true
+
+# Built-in tool server
+# NOTE: kagent chart 0.8.0-beta1 defaults to `kagent-tools.nameOverride: tools`,
+# which causes Service selectors/labels to not match the Deployment labels.
+# Result: svc/kagent-tools has no endpoints and RemoteMCPServer `kagent-tool-server`
+# fails to initialize (connection refused).
+# Keep the override consistent with the Deployment labels.
+kagent-tools:
+  nameOverride: kagent-tools
