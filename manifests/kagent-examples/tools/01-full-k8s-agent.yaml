@@ -75,28 +75,28 @@ spec:
     tools:
       - type: McpServer
         mcpServer:
-          name: kagent-tools
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
           toolNames:
-            - kubectl_get
-            - kubectl_describe
-            - kubectl_logs
-            - kubectl_events
-            - kubectl_delete
-            - kubectl_apply
-            - kubectl_scale
-            - kubectl_label
-            - kubectl_annotate
-            - helm_list
-            - helm_install
+            - k8s_get_resources
+            - k8s_describe_resource
+            - k8s_get_pod_logs
+            - k8s_get_events
+            - k8s_delete_resource
+            - k8s_apply_manifest
+            - k8s_scale
+            - k8s_label_resource
+            - k8s_annotate_resource
+            - helm_list_releases
             - helm_upgrade
             - helm_uninstall
-            - prometheus_query
-            - prometheus_query_range
+            - prometheus_query_tool
+            - prometheus_query_range_tool
           requireApproval:
-            - kubectl_delete
-            - kubectl_apply
-            - kubectl_scale
-            - helm_install
+            - k8s_delete_resource
+            - k8s_apply_manifest
+            - k8s_scale
             - helm_upgrade
             - helm_uninstall
     memory:

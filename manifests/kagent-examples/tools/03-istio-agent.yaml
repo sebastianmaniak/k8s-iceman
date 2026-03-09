@@ -28,19 +28,21 @@ spec:
     tools:
       - type: McpServer
         mcpServer:
-          name: kagent-tools
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
           toolNames:
             - istio_proxy_status
             - istio_proxy_config
-            - istio_analyze
+            - istio_analyze_cluster_configuration
             - istio_version
-            - istio_install
-            - istio_manifest_generate
+            - istio_install_istio
+            - istio_generate_manifest
             - istio_remote_clusters
-            - istio_waypoint
-            - kubectl_get
-            - kubectl_describe
+            - istio_apply_waypoint
+            - k8s_get_resources
+            - k8s_describe_resource
           requireApproval:
-            - istio_install
-            - istio_manifest_generate
-            - istio_waypoint
+            - istio_install_istio
+            - istio_generate_manifest
+            - istio_apply_waypoint

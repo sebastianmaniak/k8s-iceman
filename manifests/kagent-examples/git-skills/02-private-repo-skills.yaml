@@ -26,10 +26,12 @@ spec:
     tools:
       - type: McpServer
         mcpServer:
-          name: kagent-tools
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
           toolNames:
-            - kubectl_get
-            - kubectl_describe
+            - k8s_get_resources
+            - k8s_describe_resource
     skills:
       gitAuthSecretRef:
         name: git-credentials

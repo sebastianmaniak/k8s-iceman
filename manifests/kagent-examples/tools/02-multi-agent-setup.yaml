@@ -24,12 +24,14 @@ spec:
     tools:
       - type: McpServer
         mcpServer:
-          name: kagent-tools
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
           toolNames:
-            - kubectl_get
-            - kubectl_describe
-            - kubectl_logs
-            - kubectl_events
+            - k8s_get_resources
+            - k8s_describe_resource
+            - k8s_get_pod_logs
+            - k8s_get_events
     a2aServer:
       enabled: true
 ---
@@ -52,14 +54,16 @@ spec:
     tools:
       - type: McpServer
         mcpServer:
-          name: kagent-tools
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
           toolNames:
-            - prometheus_query
-            - prometheus_query_range
-            - prometheus_labels
-            - prometheus_targets
-            - grafana_dashboards
-            - grafana_alerts
+            - prometheus_query_tool
+            - prometheus_query_range_tool
+            - prometheus_label_names_tool
+            - prometheus_targets_tool
+            - search_dashboards
+            - list_alert_rules
     a2aServer:
       enabled: true
 ---
