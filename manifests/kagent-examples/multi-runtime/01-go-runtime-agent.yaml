@@ -13,7 +13,6 @@ metadata:
 spec:
   type: Declarative
   declarative:
-    runtime: go
     modelConfig: gpt4o
     systemMessage: |
       You are a fast-starting agent running on the Go ADK runtime.

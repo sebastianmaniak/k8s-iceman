@@ -51,7 +51,6 @@ metadata:
 spec:
   type: Declarative
   declarative:
-    runtime: python
     modelConfig: gpt4o
     promptTemplate:
       dataSources:
@@ -102,5 +101,5 @@ spec:
     memory:
       modelConfig: openai-embed
     context:
-      eventsCompaction:
+      compaction:
         enabled: true

@@ -44,5 +44,5 @@ spec:
             - prometheus_query_tool
             - prometheus_query_range_tool
     context:
-      eventsCompaction:
+      compaction:
         enabled: true

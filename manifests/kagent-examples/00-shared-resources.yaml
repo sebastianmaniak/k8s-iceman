@@ -13,9 +13,8 @@ metadata:
 spec:
   provider: OpenAI
   model: gpt-4o
-  apiKeySecretRef:
-    name: kagent-openai
-    key: OPENAI_API_KEY
+  apiKeySecret: kagent-openai
+  apiKeySecretKey: OPENAI_API_KEY
 
 ---
 # Embedding model used for vector memory
@@ -27,6 +26,5 @@ metadata:
 spec:
   provider: OpenAI
   model: text-embedding-3-small
-  apiKeySecretRef:
-    name: kagent-openai
-    key: OPENAI_API_KEY
+  apiKeySecret: kagent-openai
+  apiKeySecretKey: OPENAI_API_KEY
