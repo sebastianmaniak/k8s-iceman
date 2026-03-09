@@ -18,7 +18,7 @@ spec:
   declarative:
     modelConfig: gpt4o
     systemMessage: |
-      You are a file management agent. You can read, write, and delete files.
+      You are a Kubernetes change agent. You can inspect resources freely, but mutating operations require user approval.
 
       IMPORTANT: Write and delete operations require user approval. The user
       will see what you're about to do and can approve or reject it.
@@ -27,12 +27,14 @@ spec:
     tools:
       - type: McpServer
         mcpServer:
-          name: filesystem-server
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
           toolNames:
-            - read_file
-            - write_file
-            - delete_file
-            - list_directory
+            - k8s_get_resources
+            - k8s_apply_manifest
+            - k8s_delete_resource
+            - k8s_get_available_api_resources
           requireApproval:
-            - write_file
-            - delete_file
+            - k8s_apply_manifest
+            - k8s_delete_resource

@@ -25,24 +25,26 @@ spec:
 
       Read operations (get, describe, logs, events) run automatically.
       Destructive or mutating operations require user approval:
-        - kubectl_delete: Deleting resources
-        - kubectl_apply: Applying manifests
-        - kubectl_scale: Scaling deployments
+        - k8s_delete_resource: Deleting resources
+        - k8s_apply_manifest: Applying manifests
+        - k8s_scale: Scaling deployments
 
       Always explain the impact of destructive operations before attempting them.
     tools:
       - type: McpServer
         mcpServer:
-          name: kagent-tools
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
           toolNames:
-            - kubectl_get
-            - kubectl_describe
-            - kubectl_logs
-            - kubectl_events
-            - kubectl_delete
-            - kubectl_apply
-            - kubectl_scale
+            - k8s_get_resources
+            - k8s_describe_resource
+            - k8s_get_pod_logs
+            - k8s_get_events
+            - k8s_delete_resource
+            - k8s_apply_manifest
+            - k8s_scale
           requireApproval:
-            - kubectl_delete
-            - kubectl_apply
-            - kubectl_scale
+            - k8s_delete_resource
+            - k8s_apply_manifest
+            - k8s_scale
