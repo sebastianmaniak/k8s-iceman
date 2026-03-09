@@ -31,9 +31,3 @@ spec:
             - k8s_get_resources
             - k8s_describe_resource
             - k8s_get_pod_logs
-    skills:
-      gitRefs:
-        - url: https://github.com/kagent-dev/kagent.git
-          ref: main
-          path: docs
-          name: kagent-docs

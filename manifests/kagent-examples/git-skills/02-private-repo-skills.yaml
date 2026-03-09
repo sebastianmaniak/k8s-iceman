@@ -32,13 +32,3 @@ spec:
           toolNames:
             - k8s_get_resources
             - k8s_describe_resource
-    skills:
-      gitAuthSecretRef:
-        name: git-credentials
-      gitRefs:
-        - url: https://github.com/myorg/internal-runbooks.git
-          ref: main
-        - url: https://github.com/myorg/sre-playbooks.git
-          ref: v2.0
-          path: kubernetes
-          name: k8s-playbooks
