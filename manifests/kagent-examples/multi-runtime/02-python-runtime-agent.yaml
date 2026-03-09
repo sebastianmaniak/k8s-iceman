@@ -33,6 +33,3 @@ spec:
             - helm_upgrade
     memory:
       modelConfig: openai-embed
-    context:
-      compaction:
-        enabled: true

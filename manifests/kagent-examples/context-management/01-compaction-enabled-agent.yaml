@@ -45,4 +45,6 @@ spec:
             - prometheus_query_range_tool
     context:
       compaction:
-        enabled: true
+        tokenThreshold: 120000
+        eventRetentionSize: 80
+        overlapSize: 8
