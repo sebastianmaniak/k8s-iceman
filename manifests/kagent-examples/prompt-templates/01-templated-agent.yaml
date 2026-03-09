@@ -46,10 +46,10 @@ spec:
     modelConfig: gpt4o
     promptTemplate:
       dataSources:
-        - configMapRef:
-            name: kagent-builtin-prompts
-        - configMapRef:
-            name: team-prompts
+        - kind: ConfigMap
+          name: kagent-builtin-prompts
+        - kind: ConfigMap
+          name: team-prompts
     systemMessage: |
       You are {{.AgentName}}, an SRE agent operating in the
       {{.AgentNamespace}} namespace.

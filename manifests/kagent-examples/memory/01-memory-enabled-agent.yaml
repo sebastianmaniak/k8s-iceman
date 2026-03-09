@@ -24,7 +24,4 @@ spec:
       If a user asks about something you discussed before, check your
       memory for relevant context.
     memory:
-      enabled: true
-      embeddingProvider:
-        type: OpenAI
-        model: text-embedding-3-small
+      modelConfig: openai-embed
