@@ -62,3 +62,6 @@ agents:
 # Keep the override consistent with the Deployment labels.
 kagent-tools:
   nameOverride: kagent-tools
+  # Keep the Service name stable (the chart's RemoteMCPServer URL is hard-coded
+  # to http://kagent-tools.<ns>:8084/mcp in 0.8.0-beta1)
+  fullnameOverride: kagent-tools
