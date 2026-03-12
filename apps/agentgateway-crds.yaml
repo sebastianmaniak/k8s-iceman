@@ -10,9 +10,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: ghcr.io/kgateway-dev/charts
+    repoURL: cr.agentgateway.dev/charts
     chart: agentgateway-crds
-    targetRevision: v2.2.1
+    targetRevision: v1.0.0-alpha.4
     helm:
       releaseName: agentgateway-crds
   destination:
