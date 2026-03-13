@@ -31,13 +31,12 @@ async def send_a2a_task(message_text: str, session_id: str) -> str:
     payload = {
         "jsonrpc": "2.0",
         "id": task_id,
-        "method": "tasks/send",
+        "method": "message/send",
         "params": {
             "id": task_id,
-            "sessionId": session_id,
             "message": {
                 "role": "user",
-                "parts": [{"type": "text", "text": message_text}],
+                "parts": [{"kind": "text", "text": message_text}],
             },
         },
     }
@@ -55,14 +54,14 @@ async def send_a2a_task(message_text: str, session_id: str) -> str:
     artifacts = result.get("artifacts", [])
     if artifacts:
         parts = artifacts[-1].get("parts", [])
-        texts = [p.get("text", "") for p in parts if p.get("type") == "text"]
+        texts = [p.get("text", "") for p in parts if p.get("kind") == "text"]
         if texts:
             return "\n".join(texts)
 
     status = result.get("status", {})
     if status.get("message", {}).get("parts"):
         parts = status["message"]["parts"]
-        texts = [p.get("text", "") for p in parts if p.get("type") == "text"]
+        texts = [p.get("text", "") for p in parts if p.get("kind") == "text"]
         if texts:
             return "\n".join(texts)
 
