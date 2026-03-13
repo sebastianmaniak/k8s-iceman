@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: whatsapp-kagent-bot
+  namespace: kagent
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whatsapp-kagent-bot
+  namespace: kagent
+  labels:
+    app: whatsapp-kagent-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: whatsapp-kagent-bot
+  template:
+    metadata:
+      labels:
+        app: whatsapp-kagent-bot
+    spec:
+      serviceAccountName: whatsapp-kagent-bot
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: bot
+          image: ghcr.io/YOUR_ORG/whatsapp-kagent-bot:latest
+          imagePullPolicy: Always
+          env:
+            - name: KAGENT_A2A_URL
+              value: "http://kagent-controller.kagent.svc.cluster.local:8083/api/a2a/kagent/whatsapp-k8s-agent"
+            - name: AUTH_STATE_DIR
+              value: /data/auth
+            - name: RESPOND_TO_GROUPS
+              value: "false"
+            - name: MENTION_ONLY
+              value: "true"
+            - name: LOG_LEVEL
+              value: info
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+          volumeMounts:
+            - name: auth-state
+              mountPath: /data/auth
+      volumes:
+        - name: auth-state
+          persistentVolumeClaim:
+            claimName: whatsapp-bot-auth

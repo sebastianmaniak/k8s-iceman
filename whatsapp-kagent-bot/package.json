@@ -1,0 +1,18 @@
+{
+  "name": "whatsapp-kagent-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WhatsApp bot that forwards messages to a kagent A2A agent using Baileys.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc.8",
+    "pino": "10.0.0",
+    "qrcode-terminal": "0.12.0"
+  }
+}
