@@ -8,6 +8,8 @@
 # LLM Providers
 providers:
   default: openAI
+  openAI:
+    model: "gpt-5.4"
 
 # Database (default: SQLite with vector support)
 database:
