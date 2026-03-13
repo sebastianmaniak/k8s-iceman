@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telegram-bot
+  namespace: kagent
+  labels:
+    app: telegram-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: telegram-bot
+  template:
+    metadata:
+      labels:
+        app: telegram-bot
+    spec:
+      serviceAccountName: telegram-bot
+      containers:
+        - name: bot
+          image: docker.io/sebbycorp/telegram-kagent-bot:latest
+          imagePullPolicy: Always
+          env:
+            - name: TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-bot-token
+                  key: TELEGRAM_BOT_TOKEN
+            - name: KAGENT_A2A_URL
+              value: http://kagent-controller.kagent.svc.cluster.local:8083/api/a2a/kagent/telegram-k8s-agent/
+            - name: LOG_LEVEL
+              value: INFO
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - import os; assert os.path.exists('/tmp/bot-healthy')
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - import os; assert os.path.exists('/tmp/bot-healthy')
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

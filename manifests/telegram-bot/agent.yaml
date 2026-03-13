@@ -1,0 +1,88 @@
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: telegram-k8s-agent
+  namespace: kagent
+spec:
+  description: Kubernetes operations agent accessible via Telegram bot
+  type: Declarative
+  declarative:
+    modelConfig: default-model-config
+    promptTemplate:
+      dataSources:
+        - alias: builtin
+          kind: ConfigMap
+          name: kagent-builtin-prompts
+    a2aConfig:
+      skills:
+        - id: k8s-operations
+          name: Kubernetes Operations
+          description: Query, manage, and troubleshoot Kubernetes resources
+          tags:
+            - kubernetes
+            - operations
+          examples:
+            - What pods are running in the default namespace?
+            - Show me the logs for pod X
+            - What Helm releases are installed?
+        - id: cluster-monitoring
+          name: Cluster Monitoring
+          description: Query Prometheus metrics and monitor cluster health
+          tags:
+            - monitoring
+            - prometheus
+          examples:
+            - What is the CPU usage across nodes?
+            - Show me the memory usage for namespace kagent
+    systemMessage: |
+      You are {{.AgentName}}, a Kubernetes operations agent accessible via Telegram.
+
+      {{include "builtin/safety-guardrails"}}
+      {{include "builtin/tool-usage-best-practices"}}
+      {{include "builtin/kubernetes-context"}}
+
+      You help users manage their Kubernetes cluster through Telegram messages.
+      Keep responses concise and well-formatted for chat readability.
+      Use short code blocks for YAML/logs. Summarize large outputs.
+
+      Available tools: {{.ToolNames}}
+    tools:
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
+          requireApproval:
+            - k8s_delete_resource
+            - k8s_apply_manifest
+            - k8s_scale
+            - helm_upgrade
+            - helm_uninstall
+          toolNames:
+            - k8s_get_resources
+            - k8s_describe_resource
+            - k8s_get_pod_logs
+            - k8s_get_events
+            - k8s_get_resource_yaml
+            - k8s_get_available_api_resources
+            - k8s_get_cluster_configuration
+            - k8s_apply_manifest
+            - k8s_delete_resource
+            - k8s_scale
+            - k8s_label_resource
+            - k8s_annotate_resource
+            - k8s_rollout
+            - k8s_check_service_connectivity
+            - k8s_execute_command
+            - helm_list_releases
+            - helm_get_release
+            - helm_upgrade
+            - helm_uninstall
+            - istio_proxy_status
+            - istio_analyze_cluster_configuration
+            - istio_version
+            - prometheus_query_tool
+            - prometheus_query_range_tool
+            - prometheus_label_names_tool
+            - prometheus_targets_tool
+            - datetime_get_current_time

@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: telegram-bot
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ProfessorSeb/k8s-iceman.git
+    targetRevision: main
+    path: manifests/telegram-bot
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kagent
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 10m0s
