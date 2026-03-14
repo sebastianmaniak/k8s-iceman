@@ -58,8 +58,22 @@ def _extract_text(result: dict) -> str | None:
     return None
 
 
-async def _send_a2a_message(task_id: str, message_text: str, session_id: str) -> dict:
+async def _send_a2a_request(
+    task_id: str,
+    message_text: str,
+    session_id: str,
+    context_id: str | None = None,
+) -> dict:
     """Send a message to the kagent A2A endpoint and return the raw result."""
+    message = {
+        "role": "user",
+        "parts": [{"kind": "text", "text": message_text}],
+    }
+    # Include contextId and taskId in the message when replying to an existing task
+    if context_id:
+        message["contextId"] = context_id
+        message["taskId"] = task_id
+
     payload = {
         "jsonrpc": "2.0",
         "id": task_id,
@@ -67,10 +81,7 @@ async def _send_a2a_message(task_id: str, message_text: str, session_id: str) ->
         "params": {
             "id": task_id,
             "sessionId": session_id,
-            "message": {
-                "role": "user",
-                "parts": [{"kind": "text", "text": message_text}],
-            },
+            "message": message,
         },
     }
 
@@ -90,12 +101,14 @@ async def _send_a2a_message(task_id: str, message_text: str, session_id: str) ->
 async def send_a2a_task(message_text: str, session_id: str) -> dict:
     """Send a new task to the kagent A2A endpoint."""
     task_id = str(uuid.uuid4())
-    return await _send_a2a_message(task_id, message_text, session_id)
+    return await _send_a2a_request(task_id, message_text, session_id)
 
 
-async def send_a2a_reply(task_id: str, message_text: str, session_id: str) -> dict:
+async def send_a2a_reply(
+    task_id: str, message_text: str, session_id: str, context_id: str | None = None
+) -> dict:
     """Send a reply to an existing task (e.g. for HITL approval)."""
-    return await _send_a2a_message(task_id, message_text, session_id)
+    return await _send_a2a_request(task_id, message_text, session_id, context_id)
 
 
 async def start_command(update: Update, _) -> None:
@@ -156,6 +169,7 @@ async def handle_message(update: Update, _) -> None:
         status = result.get("status", {})
         state = status.get("state", "")
         task_id = result.get("id", "")
+        context_id = result.get("contextId", "")
 
         if state == "input-required":
             # Agent needs human approval (HITL) — show Approve/Reject buttons
@@ -163,6 +177,7 @@ async def handle_message(update: Update, _) -> None:
             callback_id = str(uuid.uuid4())[:8]
             pending_approvals[callback_id] = {
                 "task_id": task_id,
+                "context_id": context_id,
                 "session_id": session_id,
                 "user_id": user_id,
             }
@@ -210,6 +225,7 @@ async def handle_approval_callback(update: Update, _) -> None:
         return
 
     task_id = approval["task_id"]
+    context_id = approval.get("context_id", "")
     session_id = approval["session_id"]
 
     if action == "approve":
@@ -220,7 +236,7 @@ async def handle_approval_callback(update: Update, _) -> None:
         reply_text = "rejected"
 
     try:
-        result = await send_a2a_reply(task_id, reply_text, session_id)
+        result = await send_a2a_reply(task_id, reply_text, session_id, context_id)
         status = result.get("status", {})
         state = status.get("state", "")
 
@@ -230,6 +246,7 @@ async def handle_approval_callback(update: Update, _) -> None:
             new_callback_id = str(uuid.uuid4())[:8]
             pending_approvals[new_callback_id] = {
                 "task_id": result.get("id", task_id),
+                "context_id": result.get("contextId", context_id),
                 "session_id": session_id,
                 "user_id": approval["user_id"],
             }
