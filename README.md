@@ -264,11 +264,23 @@ A Telegram bot provides a chat interface to the kagent Kubernetes agent, allowin
 
 ### Features
 
-- **Natural language K8s operations** -- ask the bot to list pods, check logs, create resources, etc.
-- **Human-in-the-loop (HITL) approval** -- destructive operations (`k8s_apply_manifest`, `k8s_delete_resource`, `k8s_scale`, `k8s_create_resource`, `helm_upgrade`, `helm_uninstall`) require explicit approval via inline Approve/Reject buttons before execution
+- **Natural language K8s operations** -- ask the bot to create namespaces, apply manifests, inspect pods, check logs, scale deployments, and more
+- **Human-in-the-loop (HITL) approval** -- mutating operations (`k8s_create_resource`, `k8s_apply_manifest`, `k8s_delete_resource`, `k8s_scale`) require explicit approval via inline **Approve** / **Reject** buttons before execution
 - **Interactive questions (`ask_user`)** -- the agent can ask clarifying questions with selectable choices (inline buttons) or free-text input before taking action
+- **Long-term memory** -- the agent remembers user preferences, namespace conventions, and past operations across conversations (vector-backed via `openai-embed`)
+- **Context compaction** -- long conversations are automatically summarized so the agent doesn't lose track during extended debugging sessions
 - **Session management** -- per-user conversation sessions with `/new` to reset
 - **A2A protocol** -- communicates with kagent via the Agent-to-Agent (A2A) JSON-RPC protocol
+
+### Agent Tools
+
+The Telegram agent is focused on Kubernetes resource management:
+
+| Category | Tools |
+|----------|-------|
+| **Read / Inspect** | `k8s_get_resources`, `k8s_describe_resource`, `k8s_get_pod_logs`, `k8s_get_events`, `k8s_get_resource_yaml`, `k8s_get_available_api_resources` |
+| **Create / Mutate** (require approval) | `k8s_create_resource`, `k8s_apply_manifest`, `k8s_delete_resource`, `k8s_scale` |
+| **Other Mutate** | `k8s_rollout`, `k8s_label_resource`, `k8s_annotate_resource` |
 
 ### How HITL Works in Telegram
 
@@ -276,20 +288,60 @@ When you ask the bot to perform a mutating operation (e.g., "create a staging na
 
 1. Bot sends your request to the kagent agent via A2A
 2. Agent decides it needs to use a tool that requires approval (e.g., `k8s_create_resource`)
-3. Agent returns an `input-required` status with the tool details
-4. Bot shows you a clean summary of what the agent wants to do, with **Approve** / **Reject** buttons
+3. Agent returns an `input-required` status with the tool details wrapped in `adk_request_confirmation`
+4. Bot parses the confirmation request and shows a clean summary:
+   ```
+   The agent wants to run: k8s_create_resource
+   Tool 'k8s_create_resource' requires approval before execution.
+
+   apiVersion: v1
+   kind: Namespace
+   metadata:
+     name: staging
+
+   [Approve] [Reject]
+   ```
 5. You tap a button, and the bot sends your decision back to the agent
 6. Agent executes (or aborts) and returns the result
+7. If the agent needs multiple approvals in sequence, each one is shown with new buttons
 
-For `ask_user` questions, the agent can present choices as tappable buttons or ask for free-text input.
+### How `ask_user` Works in Telegram
+
+The agent can ask clarifying questions before taking action. The bot detects `ask_user` wrapped in `adk_request_confirmation` and renders it cleanly:
+
+- **With choices** -- each choice is shown as a tappable inline button
+- **Free-text** -- the question is displayed and the user's next message is captured as the answer
+
+Example (free-text):
+```
+What namespace name should I create?
+
+(Type your answer below)
+```
+
+Example (with choices):
+```
+Which environment do you want to deploy to?
+
+[staging] [production] [development]
+```
 
 ### Bot Commands
 
 | Command | Description |
 |---------|-------------|
 | `/start` | Show help and available commands |
-| `/new` | Reset your conversation session |
+| `/new` | Reset your conversation session (also clears pending questions) |
 | `/status` | Check connectivity to the kagent agent |
+
+### Agent Configuration
+
+The agent is configured with:
+- **Memory** -- `memory.modelConfig: openai-embed` for persistent context across conversations (requires `openai-embed` ModelConfig from `00-shared-resources.yaml`)
+- **Context compaction** -- `tokenThreshold: 120000`, `eventRetentionSize: 80`, `overlapSize: 8` for managing long conversations
+- **System message** -- includes kagent built-in prompts for safety guardrails, tool usage best practices, and Kubernetes context
+
+**Agent manifest:** `manifests/kagent-examples/telegram-bot/02-agent.yaml`
 
 ### Deployment
 
@@ -301,8 +353,15 @@ The bot runs as a Deployment in the `kagent` namespace. It uses polling (no ingr
 - `TELEGRAM_BOT_TOKEN` -- from Vault via External Secrets (`secret/telegram`)
 - `KAGENT_A2A_URL` -- set in the deployment manifest (points to kagent-controller A2A endpoint)
 
-**Agent configuration:** `manifests/kagent-examples/telegram-bot/02-agent.yaml`
 **Deployment manifest:** `manifests/kagent-examples/telegram-bot/03-deployment.yaml`
+
+### Prerequisites
+
+The agent requires the `openai-embed` ModelConfig for memory. Ensure `00-shared-resources.yaml` is applied:
+
+```bash
+kubectl apply -f manifests/kagent-examples/00-shared-resources.yaml
+```
 
 ### Local Development
 
