@@ -191,23 +191,22 @@ async def _send_a2a_request(
     context_id: str | None = None,
 ) -> dict:
     """Send a message to the kagent A2A endpoint and return the raw result."""
-    message = {
-        "role": "user",
-        "parts": [{"kind": "text", "text": message_text}],
+    params = {
+        "id": task_id,
+        "sessionId": session_id,
+        "message": {
+            "role": "user",
+            "parts": [{"kind": "text", "text": message_text}],
+        },
     }
     if context_id:
-        message["contextId"] = context_id
-        message["taskId"] = task_id
+        params["contextId"] = context_id
 
     payload = {
         "jsonrpc": "2.0",
         "id": task_id,
         "method": "message/send",
-        "params": {
-            "id": task_id,
-            "sessionId": session_id,
-            "message": message,
-        },
+        "params": params,
     }
 
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -223,10 +222,10 @@ async def _send_a2a_request(
     return data.get("result", {})
 
 
-async def send_a2a_task(message_text: str, session_id: str) -> dict:
+async def send_a2a_task(message_text: str, session_id: str, context_id: str | None = None) -> dict:
     """Send a new task to the kagent A2A endpoint."""
     task_id = str(uuid.uuid4())
-    return await _send_a2a_request(task_id, message_text, session_id)
+    return await _send_a2a_request(task_id, message_text, session_id, context_id)
 
 
 async def send_a2a_reply(
