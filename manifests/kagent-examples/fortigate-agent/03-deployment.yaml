@@ -91,7 +91,7 @@ metadata:
   namespace: kagent
 spec:
   description: "FortiGate firewall MCP server — policies, NAT, VIPs, address objects, services, interfaces, routing, and system status"
-  url: "http://fortigate-mcp-server.kagent:8814/fortigate-mcp/mcp"
+  url: "http://fortigate-mcp-server.kagent:8814/fortigate-mcp/sse"
   timeout: "30s"
   sseReadTimeout: "5m0s"
 ---
