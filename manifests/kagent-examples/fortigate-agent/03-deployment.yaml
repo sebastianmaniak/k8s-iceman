@@ -1,0 +1,131 @@
+# FortiGate Wrapper API Deployment
+# FastAPI service that proxies FortiGate REST API calls with MCP endpoint for kagent.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fortigate-wrapper
+  namespace: kagent
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fortigate-wrapper
+  namespace: kagent
+  labels:
+    app: fortigate-wrapper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fortigate-wrapper
+  template:
+    metadata:
+      labels:
+        app: fortigate-wrapper
+    spec:
+      serviceAccountName: fortigate-wrapper
+      containers:
+        - name: fortigate-wrapper
+          image: docker.io/sebbycorp/fortigate-wrapper:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: FORTI_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: fortigate-credentials
+                  key: FORTI_HOST
+            - name: FORTI_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: fortigate-credentials
+                  key: FORTI_TOKEN
+            - name: FORTI_VERIFY_SSL
+              value: "false"
+            - name: FORTI_VDOM
+              value: "root"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fortigate-wrapper
+  namespace: kagent
+  labels:
+    app: fortigate-wrapper
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: fortigate-wrapper
+  type: ClusterIP
+---
+# RemoteMCPServer: kagent discovers FortiGate tools via this MCP endpoint
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: fortigate-mcp
+  namespace: kagent
+spec:
+  description: "FortiGate firewall API — policies, NAT, address objects, services, interfaces, and system status"
+  url: "http://fortigate-wrapper.kagent:8080/mcp/mcp"
+  timeout: "30s"
+  sseReadTimeout: "5m0s"
+---
+# Network policy: allow traffic from kagent namespace, egress to FortiGate mgmt
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fortigate-wrapper-policy
+  namespace: kagent
+spec:
+  podSelector:
+    matchLabels:
+      app: fortigate-wrapper
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kagent
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Allow outbound to FortiGate management network
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
