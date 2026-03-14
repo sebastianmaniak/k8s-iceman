@@ -189,7 +189,7 @@ async def _send_a2a_request(
 
     payload = {
         "jsonrpc": "2.0",
-        "id": task_id,
+        "id": message["messageId"],
         "method": "message/send",
         "params": {"message": message},
     }
