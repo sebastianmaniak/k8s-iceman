@@ -1,0 +1,132 @@
+# F5 Wrapper API Deployment
+# FastAPI service that proxies F5 iControl REST calls with OpenAPI auto-discovery for kagent.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: f5-wrapper
+  namespace: kagent
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: f5-wrapper
+  namespace: kagent
+  labels:
+    app: f5-wrapper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: f5-wrapper
+  template:
+    metadata:
+      labels:
+        app: f5-wrapper
+    spec:
+      serviceAccountName: f5-wrapper
+      containers:
+        - name: f5-wrapper
+          image: docker.io/sebbycorp/f5-wrapper:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: F5_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: f5-credentials
+                  key: F5_HOST
+            - name: F5_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: f5-credentials
+                  key: F5_USERNAME
+            - name: F5_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: f5-credentials
+                  key: F5_PASSWORD
+            - name: F5_VERIFY_SSL
+              value: "false"
+            - name: F5_PARTITION
+              value: "Common"
+            - name: ALLOWED_PARTITIONS
+              value: "Common"
+            - name: READ_ONLY
+              value: "false"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: f5-wrapper
+  namespace: kagent
+  labels:
+    app: f5-wrapper
+  annotations:
+    # Enables kagent HTTP tool auto-discovery from the OpenAPI spec
+    kagent.dev/openapi-path: "/openapi.json"
+    kagent.dev/description: "F5 BIG-IP automation API for managing pools, virtual servers, nodes, and system operations"
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: f5-wrapper
+  type: ClusterIP
+---
+# Network policy: only allow traffic from kagent namespace, egress to F5 mgmt IP
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: f5-wrapper-policy
+  namespace: kagent
+spec:
+  podSelector:
+    matchLabels:
+      app: f5-wrapper
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kagent
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Allow outbound to F5 management network
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
