@@ -78,10 +78,7 @@ spec:
             - istio_proxy_status
             - istio_analyze_cluster_configuration
             - istio_version
-            - prometheus_query_tool
-            - prometheus_query_range_tool
-            - prometheus_label_names_tool
-            - prometheus_targets_tool
+            - k8s_create_resource
             - datetime_get_current_time
           requireApproval:
             - k8s_delete_resource
@@ -89,3 +86,4 @@ spec:
             - k8s_scale
             - helm_upgrade
             - helm_uninstall
+            - k8s_create_resource
