@@ -26,27 +26,16 @@ KAGENT_A2A_URL = os.environ["KAGENT_A2A_URL"]
 
 HEALTH_FILE = Path("/tmp/bot-healthy")
 
-# Per-user session tracking for conversation continuity
-user_sessions: dict[int, str] = {}
+# Per-user contextId for conversation continuity (maps Telegram user_id -> kagent contextId)
 user_contexts: dict[int, str] = {}
 
-# Pending approval tasks: callback_id -> {task_id, context_id, session_id, user_id}
+# Pending approval tasks: callback_id -> {context_id, user_id}
 pending_approvals: dict[str, dict] = {}
-
-# Pending input tasks (ask_user free-text): user_id -> {task_id, context_id, session_id}
-# When set, the user's next text message is forwarded as a reply to this task.
-pending_input: dict[int, dict] = {}
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def get_session(user_id: int) -> str:
-    if user_id not in user_sessions:
-        user_sessions[user_id] = str(uuid.uuid4())
-    return user_sessions[user_id]
-
 
 def _get_status_parts(result: dict) -> list[dict]:
     """Return the message parts from the status field of an A2A result."""
@@ -185,28 +174,24 @@ def _extract_text(result: dict) -> str | None:
 # ---------------------------------------------------------------------------
 
 async def _send_a2a_request(
-    task_id: str,
     message_text: str,
-    session_id: str,
     context_id: str | None = None,
 ) -> dict:
     """Send a message to the kagent A2A endpoint and return the raw result."""
-    params = {
-        "id": task_id,
-        "sessionId": session_id,
-        "message": {
-            "role": "user",
-            "parts": [{"kind": "text", "text": message_text}],
-        },
+    message = {
+        "role": "user",
+        "kind": "message",
+        "messageId": str(uuid.uuid4()),
+        "parts": [{"kind": "text", "text": message_text}],
     }
     if context_id:
-        params["contextId"] = context_id
+        message["contextId"] = context_id
 
     payload = {
         "jsonrpc": "2.0",
         "id": task_id,
         "method": "message/send",
-        "params": params,
+        "params": {"message": message},
     }
 
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -218,21 +203,15 @@ async def _send_a2a_request(
         resp.raise_for_status()
         data = resp.json()
 
-    logger.debug("A2A response: %s", json.dumps(data, indent=2))
-    return data.get("result", {})
+    result = data.get("result", {})
+    logger.info("A2A state=%s contextId=%s (sent contextId=%s)",
+                result.get("status", {}).get("state"), result.get("contextId"), context_id)
+    return result
 
 
-async def send_a2a_task(message_text: str, session_id: str, context_id: str | None = None) -> dict:
-    """Send a new task to the kagent A2A endpoint."""
-    task_id = str(uuid.uuid4())
-    return await _send_a2a_request(task_id, message_text, session_id, context_id)
-
-
-async def send_a2a_reply(
-    task_id: str, message_text: str, session_id: str, context_id: str | None = None
-) -> dict:
-    """Send a reply to an existing task (e.g. for HITL approval or ask_user)."""
-    return await _send_a2a_request(task_id, message_text, session_id, context_id)
+async def send_a2a_message(message_text: str, context_id: str | None = None) -> dict:
+    """Send a message to the kagent A2A endpoint."""
+    return await _send_a2a_request(message_text, context_id)
 
 
 # ---------------------------------------------------------------------------
@@ -254,9 +233,7 @@ async def start_command(update: Update, _) -> None:
 async def new_command(update: Update, _) -> None:
     """Reset the user's A2A session."""
     uid = update.effective_user.id
-    user_sessions[uid] = str(uuid.uuid4())
     user_contexts.pop(uid, None)
-    pending_input.pop(uid, None)
     await update.message.reply_text("New session started.")
 
 
@@ -300,18 +277,14 @@ async def _send_chunked(target, text: str) -> None:
 async def _handle_input_required(
     result: dict,
     user_id: int,
-    session_id: str,
     reply_target,
 ) -> None:
     """Handle an input-required A2A result — show approval buttons or a question."""
-    task_id = result.get("id", "")
     context_id = result.get("contextId", "")
     kind, parsed = _classify_input_required(result)
 
     task_info = {
-        "task_id": task_id,
         "context_id": context_id,
-        "session_id": session_id,
         "user_id": user_id,
     }
 
@@ -353,8 +326,6 @@ async def _handle_input_required(
             await _edit_or_reply(reply_target, text, reply_markup=keyboard)
         else:
             # Free-text — wait for user's next message
-            pending_input[user_id] = task_info
-
             prompt = f"{question_text}\n\n(Type your answer below)"
             if len(prompt) > 4000:
                 prompt = prompt[:3997] + "..."
@@ -363,7 +334,6 @@ async def _handle_input_required(
     else:
         # Generic question fallback
         description = _extract_text(result) or "The agent is asking for input."
-        pending_input[user_id] = task_info
 
         prompt = f"{description}\n\n(Type your answer below)"
         if len(prompt) > 4000:
@@ -374,7 +344,6 @@ async def _handle_input_required(
 async def _handle_a2a_result(
     result: dict,
     user_id: int,
-    session_id: str,
     reply_target,
     fallback_text: str = "Agent returned no text response.",
 ) -> None:
@@ -382,7 +351,7 @@ async def _handle_a2a_result(
     state = result.get("status", {}).get("state", "")
 
     if state == "input-required":
-        await _handle_input_required(result, user_id, session_id, reply_target)
+        await _handle_input_required(result, user_id, reply_target)
     else:
         text = _extract_text(result) or fallback_text
         await _send_chunked(reply_target, text)
@@ -398,35 +367,18 @@ async def handle_message(update: Update, _) -> None:
         return
 
     user_id = update.effective_user.id
-    session_id = get_session(user_id)
     user_text = update.message.text
+    context_id = user_contexts.get(user_id)
 
-    logger.info("User %s: %s", user_id, user_text[:100])
-
-    # Check if this message is a reply to a pending ask_user question
-    pi = pending_input.pop(user_id, None)
-    if pi:
-        thinking_msg = await update.message.reply_text("Sending reply to agent...")
-        try:
-            result = await send_a2a_reply(
-                pi["task_id"], user_text, pi["session_id"], pi.get("context_id")
-            )
-            await _handle_a2a_result(result, user_id, pi["session_id"], thinking_msg)
-        except Exception as e:
-            logger.exception("A2A reply failed")
-            await thinking_msg.edit_text(f"Error contacting agent: {e}")
-        return
-
+    logger.info("User %s (ctx=%s): %s", user_id, context_id or "new", user_text[:100])
     thinking_msg = await update.message.reply_text("Thinking...")
 
     try:
-        context_id = user_contexts.get(user_id)
-        result = await send_a2a_task(user_text, session_id, context_id)
-        # Store contextId for conversation continuity
+        result = await send_a2a_message(user_text, context_id)
         ctx = result.get("contextId")
         if ctx:
             user_contexts[user_id] = ctx
-        await _handle_a2a_result(result, user_id, session_id, thinking_msg)
+        await _handle_a2a_result(result, user_id, thinking_msg)
     except Exception as e:
         logger.exception("A2A request failed")
         await thinking_msg.edit_text(f"Error contacting agent: {e}")
@@ -455,9 +407,7 @@ async def handle_callback(update: Update, _) -> None:
         await query.answer("Only the original requester can respond.", show_alert=True)
         return
 
-    task_id = approval["task_id"]
     context_id = approval.get("context_id", "")
-    session_id = approval["session_id"]
     user_id = approval["user_id"]
 
     if action == "approve":
@@ -474,9 +424,12 @@ async def handle_callback(update: Update, _) -> None:
         return
 
     try:
-        result = await send_a2a_reply(task_id, reply_text, session_id, context_id)
+        result = await send_a2a_message(reply_text, context_id)
+        ctx = result.get("contextId")
+        if ctx:
+            user_contexts[user_id] = ctx
         await _handle_a2a_result(
-            result, user_id, session_id, query.message, fallback_text="Action completed."
+            result, user_id, query.message, fallback_text="Action completed."
         )
     except Exception as e:
         logger.exception("A2A reply failed")
