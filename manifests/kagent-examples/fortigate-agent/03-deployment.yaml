@@ -30,7 +30,7 @@ spec:
           image: docker.io/sebbycorp/fortigate-mcp-server:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8814
+            - containerPort: 8080
           env:
             - name: FORTI_HOST
               valueFrom:
@@ -49,13 +49,15 @@ spec:
             - name: LOG_LEVEL
               value: "INFO"
           livenessProbe:
-            tcpSocket:
-              port: 8814
+            httpGet:
+              path: /health
+              port: 8080
             initialDelaySeconds: 10
             periodSeconds: 30
           readinessProbe:
-            tcpSocket:
-              port: 8814
+            httpGet:
+              path: /health
+              port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
           resources:
@@ -75,8 +77,8 @@ metadata:
     app: fortigate-mcp-server
 spec:
   ports:
-    - port: 8814
-      targetPort: 8814
+    - port: 8080
+      targetPort: 8080
       protocol: TCP
       name: http
   selector:
@@ -91,7 +93,7 @@ metadata:
   namespace: kagent
 spec:
   description: "FortiGate firewall MCP server — policies, NAT, VIPs, address objects, services, interfaces, routing, and system status"
-  url: "http://fortigate-mcp-server.kagent:8814/fortigate-mcp/sse"
+  url: "http://fortigate-mcp-server.kagent:8080/mcp/mcp"
   timeout: "30s"
   sseReadTimeout: "5m0s"
 ---
@@ -115,7 +117,7 @@ spec:
               kubernetes.io/metadata.name: kagent
       ports:
         - protocol: TCP
-          port: 8814
+          port: 8080
   egress:
     # Allow outbound to FortiGate management network
     - to:
