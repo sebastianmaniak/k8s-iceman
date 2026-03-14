@@ -27,14 +27,18 @@ GitHub Repo (this repo)          Argo CD                    Talos k8s Cluster
 │      ClusterSecret   │                        │    agentgateway (AI proxy)  │
 │      ExternalSecret  │  Vault ──> ESO ──> K8s │                             │
 │                      │    Secrets flow        │  longhorn-system (existing) │
-│  .github/workflows/  │                        └─────────────────────────────┘
-│    telegram-bot CI   │──> Docker Hub ──> sebbycorp/telegram-kagent-bot
-└──────────────────────┘
+│  .github/workflows/  │                        │  f5-wrapper pod             │
+│    telegram-bot CI   │──> Docker Hub          │    FastAPI ──> F5 iControl  │
+│    f5-wrapper CI     │    ├ sebbycorp/         └─────────────────────────────┘
+└──────────────────────┘    │  telegram-kagent-bot
+                            └ sebbycorp/f5-wrapper
 
 Telegram User ──> Telegram API ──> telegram-bot pod ──(A2A)──> kagent-controller
                                        │                            │
                                    Approve/Reject              Tool execution
-                                   ask_user replies            (K8s, Helm, Istio)
+                                   ask_user replies            (K8s, F5, etc.)
+
+kagent UI/CLI ──> kagent-controller ──(HTTP/OpenAPI)──> f5-wrapper pod ──> F5 BIG-IP
 ```
 
 ## Repository Structure
@@ -61,6 +65,14 @@ k8s-iceman/
 │   ├── main.py                      # Bot implementation (A2A + HITL)
 │   ├── requirements.txt             # Python dependencies
 │   └── Dockerfile                   # Container image build
+├── apps/f5-wrapper/                  # F5 BIG-IP API wrapper service
+│   ├── app/main.py                  # FastAPI entrypoint
+│   ├── app/config.py                # Settings from env vars
+│   ├── app/auth.py                  # F5 token management
+│   ├── app/utils/f5_client.py       # HTTP client for iControl REST
+│   ├── app/routers/                 # API routers (pools, nodes, VS, etc.)
+│   ├── requirements.txt             # Python dependencies
+│   └── Dockerfile                   # Container image build
 ├── helm-values/                      # Helm value overrides (GitOps managed)
 │   ├── vault/values.yaml            # Standalone mode, Longhorn storage
 │   ├── external-secrets/values.yaml
@@ -78,13 +90,15 @@ k8s-iceman/
 │   │   └── external-secret-kagent.yaml # ExternalSecrets for LLM API keys
 │   ├── kagent-examples/
 │   │   ├── telegram-bot/            # Telegram bot agent + deployment
+│   │   ├── f5-agent/                # F5 BIG-IP agent + wrapper deployment
 │   │   └── human-in-the-loop/       # HITL approval examples
 │   └── service-nodeports/           # NodePort services for F5 BIG-IP
 │       ├── argocd-nodeport.yaml
 │       ├── vault-nodeport.yaml
 │       └── kagent-nodeport.yaml
 ├── .github/workflows/                # CI/CD
-│   └── telegram-bot-docker.yaml     # Build + push bot image to Docker Hub
+│   ├── telegram-bot-docker.yaml     # Build + push bot image to Docker Hub
+│   └── f5-wrapper-docker.yaml       # Build + push F5 wrapper image to Docker Hub
 └── terraform/                        # Infrastructure as Code
     └── f5-bigip/                    # F5 BIG-IP VIP configuration
         ├── main.tf                  # Provider config
@@ -378,6 +392,85 @@ docker push sebbycorp/telegram-kagent-bot:latest
 kubectl rollout restart deployment telegram-bot -n kagent
 ```
 
+## F5 BIG-IP Agent
+
+An AI-powered agent for managing F5 BIG-IP load balancer infrastructure through natural language, running natively in Kubernetes via the kagent framework.
+
+### Architecture
+
+```
+kagent UI / CLI / Telegram
+        │
+        ▼ (A2A)
+kagent Engine (LLM)
+        │
+        ▼ (HTTP / OpenAPI auto-discovery)
+F5 Wrapper Service (FastAPI pod)
+        │
+        ▼ (iControl REST / HTTPS)
+F5 BIG-IP
+```
+
+The F5 Wrapper Service is a thin FastAPI app that proxies iControl REST calls, exposes a clean OpenAPI spec for kagent tool auto-discovery, and handles F5 token lifecycle in one place.
+
+### Agent Capabilities
+
+| Category | Operations |
+|----------|-----------|
+| **Pools** | List, create, delete pools; add/remove/enable/disable pool members |
+| **Virtual Servers** | List, create, delete virtual servers with profiles, iRules, SNAT |
+| **Nodes** | List, create, delete nodes; enable/disable across all pools |
+| **Monitors** | List HTTP, HTTPS, TCP health monitors |
+| **iRules** | List and inspect iRule definitions |
+| **Certificates** | List SSL certificates and expiration dates |
+| **System** | Version info, HA failover status, config sync, performance stats |
+
+### Safety & Guardrails
+
+- **Read-only mode** -- set `READ_ONLY=true` to block all write operations
+- **Partition allow-list** -- `ALLOWED_PARTITIONS` restricts which F5 partitions the agent can access
+- **Network policy** -- only kagent namespace can reach the wrapper; egress locked to the F5 management IP
+- **HA awareness** -- the agent checks failover status before write operations
+- **System prompt** -- instructs the agent to confirm destructive operations and check dependencies
+
+### Manifests
+
+| File | Description |
+|------|-------------|
+| `manifests/kagent-examples/f5-agent/01-external-secret.yaml` | Pulls F5 credentials from Vault |
+| `manifests/kagent-examples/f5-agent/02-agent.yaml` | kagent Agent CRD with system prompt and tool config |
+| `manifests/kagent-examples/f5-agent/03-deployment.yaml` | Wrapper Deployment, Service (with OpenAPI annotation), NetworkPolicy |
+
+### Deployment
+
+```bash
+# Ensure F5 credentials are stored in Vault
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN=<token> \
+  vault kv put secret/f5 host="https://10.1.1.245" username="admin" password="<password>"
+
+# Apply the manifests
+kubectl apply -f manifests/kagent-examples/f5-agent/
+
+# Verify the wrapper is running
+kubectl get pods -n kagent -l app=f5-wrapper
+kubectl logs -n kagent -l app=f5-wrapper
+```
+
+### Local Development
+
+```bash
+cd apps/f5-wrapper
+
+# Build the image
+docker build -t sebbycorp/f5-wrapper:latest .
+
+# Push to Docker Hub
+docker push sebbycorp/f5-wrapper:latest
+
+# Restart the deployment
+kubectl rollout restart deployment f5-wrapper -n kagent
+```
+
 ## CI/CD
 
 ### Telegram Bot Docker Image
@@ -398,6 +491,21 @@ A GitHub Actions workflow automatically builds and pushes the Telegram bot Docke
 **Required GitHub secrets:**
 - `DOCKERHUB_USERNAME` -- Docker Hub username
 - `DOCKERHUB_TOKEN` -- Docker Hub access token
+
+### F5 Wrapper Docker Image
+
+A GitHub Actions workflow automatically builds and pushes the F5 wrapper Docker image when changes are made to `apps/f5-wrapper/`.
+
+**Workflow:** `.github/workflows/f5-wrapper-docker.yaml`
+
+**Triggers:**
+- Push to `main` when `apps/f5-wrapper/` files change
+- Manual trigger via `workflow_dispatch`
+- PRs build the image (for validation) but do not push
+
+**Image tags:**
+- `latest` -- on pushes to `main`
+- `<git-sha>` -- on every build (e.g., `sebbycorp/f5-wrapper:a1b2c3d`)
 
 ## Making Changes (GitOps Workflow)
 
