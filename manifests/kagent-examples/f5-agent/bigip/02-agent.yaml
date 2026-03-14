@@ -114,6 +114,36 @@ spec:
           kind: RemoteMCPServer
           name: f5-bigip-mcp
           namespace: kagent
+          toolNames:
+            - list_pools
+            - get_pool
+            - create_pool
+            - delete_pool
+            - list_pool_members
+            - add_pool_member
+            - remove_pool_member
+            - set_pool_member_state
+            - list_virtual_servers
+            - get_virtual_server
+            - create_virtual_server
+            - delete_virtual_server
+            - list_nodes
+            - get_node
+            - create_node
+            - delete_node
+            - set_node_state
+            - list_monitors
+            - list_http_monitors
+            - list_https_monitors
+            - list_tcp_monitors
+            - list_irules
+            - get_irule
+            - list_certificates
+            - get_certificate
+            - system_info
+            - failover_status
+            - system_performance
+            - config_sync_status
           requireApproval:
             - create_pool
             - delete_pool
