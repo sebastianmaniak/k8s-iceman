@@ -151,12 +151,20 @@ def _format_ask_user(parsed: dict) -> tuple[str, list[str]]:
 
 
 def _extract_text(result: dict) -> str | None:
-    """Extract text from an A2A task result (artifacts or status message)."""
+    """Extract text from an A2A task result (artifacts, history, or status message)."""
     # Check artifacts first (completed responses)
     artifacts = result.get("artifacts", [])
     if artifacts:
         parts = artifacts[-1].get("parts", [])
         texts = [p.get("text", "") for p in parts if p.get("kind") == "text" and p.get("text")]
+        if texts:
+            return "\n".join(texts)
+
+    # Check history — last agent message with text parts
+    for msg in reversed(result.get("history", [])):
+        if msg.get("role") != "agent":
+            continue
+        texts = [p.get("text", "") for p in msg.get("parts", []) if p.get("kind") == "text" and p.get("text")]
         if texts:
             return "\n".join(texts)
 
@@ -412,6 +420,10 @@ async def handle_message(update: Update, _) -> None:
 
     try:
         result = await send_a2a_task(user_text, session_id)
+        # Store contextId for conversation continuity
+        ctx = result.get("contextId")
+        if ctx:
+            user_sessions[user_id] = ctx
         await _handle_a2a_result(result, user_id, session_id, thinking_msg)
     except Exception as e:
         logger.exception("A2A request failed")
