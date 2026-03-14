@@ -4,7 +4,10 @@ import time
 
 class F5TokenManager:
     def __init__(self, host: str, username: str, password: str, verify_ssl: bool = False):
-        self.host = host.rstrip("/")
+        host = host.rstrip("/")
+        if not host.startswith(("http://", "https://")):
+            host = f"https://{host}"
+        self.host = host
         self.username = username
         self.password = password
         self.verify_ssl = verify_ssl
