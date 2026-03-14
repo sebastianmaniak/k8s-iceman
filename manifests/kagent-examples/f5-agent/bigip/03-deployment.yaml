@@ -1,29 +1,31 @@
-# F5 Wrapper API Deployment
+# F5 Wrapper API Deployment (bigip)
 # FastAPI service that proxies F5 iControl REST calls with MCP endpoint for kagent.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: f5-wrapper
+  name: f5-wrapper-bigip
   namespace: kagent
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: f5-wrapper
+  name: f5-wrapper-bigip
   namespace: kagent
   labels:
-    app: f5-wrapper
+    app: f5-wrapper-bigip
+    f5-environment: bigip
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: f5-wrapper
+      app: f5-wrapper-bigip
   template:
     metadata:
       labels:
-        app: f5-wrapper
+        app: f5-wrapper-bigip
+        f5-environment: bigip
     spec:
-      serviceAccountName: f5-wrapper
+      serviceAccountName: f5-wrapper-bigip
       containers:
         - name: f5-wrapper
           image: docker.io/sebbycorp/f5-wrapper:latest
@@ -34,17 +36,17 @@ spec:
             - name: F5_HOST
               valueFrom:
                 secretKeyRef:
-                  name: f5-credentials
+                  name: f5-bigip-credentials
                   key: F5_HOST
             - name: F5_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: f5-credentials
+                  name: f5-bigip-credentials
                   key: F5_USERNAME
             - name: F5_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: f5-credentials
+                  name: f5-bigip-credentials
                   key: F5_PASSWORD
             - name: F5_VERIFY_SSL
               value: "false"
@@ -77,10 +79,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: f5-wrapper
+  name: f5-wrapper-bigip
   namespace: kagent
   labels:
-    app: f5-wrapper
+    app: f5-wrapper-bigip
 spec:
   ports:
     - port: 8080
@@ -88,18 +90,18 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: f5-wrapper
+    app: f5-wrapper-bigip
   type: ClusterIP
 ---
 # RemoteMCPServer: kagent discovers F5 tools via this MCP endpoint
 apiVersion: kagent.dev/v1alpha2
 kind: RemoteMCPServer
 metadata:
-  name: f5-wrapper-mcp
+  name: f5-bigip-mcp
   namespace: kagent
 spec:
-  description: "F5 BIG-IP automation API — pools, virtual servers, nodes, monitors, certificates, and system operations"
-  url: "http://f5-wrapper.kagent:8080/mcp"
+  description: "F5 BIG-IP automation API (bigip) — pools, virtual servers, nodes, monitors, certificates, and system operations"
+  url: "http://f5-wrapper-bigip.kagent:8080/mcp"
   timeout: "30s"
   sseReadTimeout: "5m0s"
 ---
@@ -107,12 +109,12 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: f5-wrapper-policy
+  name: f5-wrapper-bigip-policy
   namespace: kagent
 spec:
   podSelector:
     matchLabels:
-      app: f5-wrapper
+      app: f5-wrapper-bigip
   policyTypes:
     - Ingress
     - Egress

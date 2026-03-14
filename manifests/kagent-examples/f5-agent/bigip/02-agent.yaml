@@ -1,5 +1,5 @@
-# Agent: F5 BIG-IP Automation Agent
-# Manages F5 load balancer infrastructure via the F5 wrapper MCP service.
+# Agent: F5 BIG-IP Automation Agent (bigip)
+# Manages the primary F5 BIG-IP load balancer via MCP.
 # Destructive operations require user approval via HITL.
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
@@ -7,15 +7,15 @@ metadata:
   name: f5-bigip-agent
   namespace: kagent
 spec:
-  description: "AI agent for managing F5 BIG-IP load balancer configuration"
+  description: "AI agent for managing F5 BIG-IP load balancer (bigip)"
   type: Declarative
   declarative:
     modelConfig: default-model-config
     a2aConfig:
       skills:
-        - id: f5-operations
+        - id: f5-bigip-operations
           name: F5 BIG-IP Operations
-          description: "Manage pools, virtual servers, nodes, monitors, and system status on F5 BIG-IP"
+          description: "Manage pools, virtual servers, nodes, monitors, and system status on F5 BIG-IP (bigip)"
           examples:
             - "Show me all pools on the F5"
             - "Disable member 10.0.1.25:80 in pool prod-web"
@@ -27,6 +27,7 @@ spec:
             - f5
             - load-balancer
             - networking
+            - bigip
     memory:
       modelConfig: openai-embed
     context:
@@ -40,7 +41,7 @@ spec:
           name: kagent-builtin-prompts
           alias: builtin
     systemMessage: |
-      You are {{.AgentName}}, an expert AI assistant for managing F5 BIG-IP load balancer infrastructure.
+      You are {{.AgentName}}, an expert AI assistant for managing the F5 BIG-IP load balancer (environment: **bigip**).
 
       {{include "builtin/safety-guardrails"}}
       {{include "builtin/tool-usage-best-practices"}}
@@ -111,7 +112,7 @@ spec:
         mcpServer:
           apiGroup: kagent.dev
           kind: RemoteMCPServer
-          name: f5-wrapper-mcp
+          name: f5-bigip-mcp
           namespace: kagent
           requireApproval:
             - create_pool
