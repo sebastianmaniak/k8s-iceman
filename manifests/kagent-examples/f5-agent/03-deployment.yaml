@@ -1,5 +1,5 @@
 # F5 Wrapper API Deployment
-# FastAPI service that proxies F5 iControl REST calls with OpenAPI auto-discovery for kagent.
+# FastAPI service that proxies F5 iControl REST calls with MCP endpoint for kagent.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -81,10 +81,6 @@ metadata:
   namespace: kagent
   labels:
     app: f5-wrapper
-  annotations:
-    # Enables kagent HTTP tool auto-discovery from the OpenAPI spec
-    kagent.dev/openapi-path: "/openapi.json"
-    kagent.dev/description: "F5 BIG-IP automation API for managing pools, virtual servers, nodes, and system operations"
 spec:
   ports:
     - port: 8080
@@ -94,6 +90,18 @@ spec:
   selector:
     app: f5-wrapper
   type: ClusterIP
+---
+# RemoteMCPServer: kagent discovers F5 tools via this MCP endpoint
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: f5-wrapper-mcp
+  namespace: kagent
+spec:
+  description: "F5 BIG-IP automation API — pools, virtual servers, nodes, monitors, certificates, and system operations"
+  url: "http://f5-wrapper.kagent:8080/mcp"
+  timeout: "30s"
+  sseReadTimeout: "5m0s"
 ---
 # Network policy: only allow traffic from kagent namespace, egress to F5 mgmt IP
 apiVersion: networking.k8s.io/v1

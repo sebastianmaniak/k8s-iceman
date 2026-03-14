@@ -1,6 +1,6 @@
 # Agent: F5 BIG-IP Automation Agent
-# Manages F5 load balancer infrastructure via the F5 wrapper API service.
-# Destructive operations (create, delete, state changes) require user approval via HITL.
+# Manages F5 load balancer infrastructure via the F5 wrapper MCP service.
+# Destructive operations require user approval via HITL.
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
@@ -110,6 +110,17 @@ spec:
       - type: McpServer
         mcpServer:
           apiGroup: kagent.dev
-          kind: Service
-          name: f5-wrapper
+          kind: RemoteMCPServer
+          name: f5-wrapper-mcp
           namespace: kagent
+          requireApproval:
+            - create_pool
+            - delete_pool
+            - add_pool_member
+            - remove_pool_member
+            - set_pool_member_state
+            - create_virtual_server
+            - delete_virtual_server
+            - create_node
+            - delete_node
+            - set_node_state
