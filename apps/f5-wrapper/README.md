@@ -1,6 +1,6 @@
 # F5 BIG-IP Wrapper API
 
-A lightweight FastAPI service that wraps the F5 BIG-IP iControl REST API and exposes it as a clean, OpenAPI-documented HTTP API. Built specifically for consumption by [kagent](https://kagent.dev) — a Kubernetes-native AI agent framework — so an LLM-powered agent can manage F5 load balancer infrastructure through natural language.
+A lightweight FastAPI service that wraps the F5 BIG-IP iControl REST API and exposes it as both a REST API and an MCP (Model Context Protocol) tool server. Built specifically for consumption by [kagent](https://kagent.dev) — a Kubernetes-native AI agent framework — so an LLM-powered agent can manage F5 load balancer infrastructure through natural language.
 
 ## Why a Wrapper?
 
@@ -8,108 +8,126 @@ The F5 iControl REST API is massive, uses token-based auth with expiring session
 
 1. **Exposing only what the agent needs** — a curated set of pool, virtual server, node, monitor, iRule, certificate, and system operations instead of the full iControl surface area
 2. **Handling auth in one place** — token acquisition, automatic refresh (before the 1200s expiry), and clean logout on shutdown
-3. **Producing clean OpenAPI schemas** — FastAPI auto-generates `/openapi.json`, which kagent uses to auto-discover all available tools without any manual registration
-4. **Adding guardrails** — read-only mode toggle, partition allow-lists, and clear HTTP error responses the agent can reason about
+3. **Speaking MCP natively** — kagent discovers all 28 tools via the `/mcp` endpoint using streamable HTTP, no manual tool registration needed
+4. **Adding guardrails** — read-only mode toggle, partition allow-lists, HITL approval for destructive operations, and clear error responses the agent can reason about
 
-## How It Integrates with kagent
+## Architecture
 
 ```
-User (natural language)
+User (natural language via kagent UI, Telegram, or A2A)
     │
     ▼
-kagent Engine (sends prompt + tool definitions to LLM)
+kagent Controller (routes to f5-bigip-agent)
     │
     ▼
-LLM decides which tool to call (e.g., "list_pools" or "set_member_state")
+LLM decides which MCP tool to call (e.g., "list_pools", "set_node_state")
     │
     ▼
-kagent invokes this wrapper via HTTP
+kagent invokes tool via MCP streamable-HTTP → f5-wrapper /mcp endpoint
     │
     ▼
-Wrapper translates to iControl REST → F5 BIG-IP
+F5 Wrapper translates to iControl REST → F5 BIG-IP
     │
     ▼
 Response flows back → LLM formats a human-readable answer
 ```
 
-The key integration point is the Kubernetes Service annotation:
+### kagent Integration
 
+The wrapper integrates with kagent through two Kubernetes resources:
+
+**RemoteMCPServer** — tells kagent where to discover tools:
 ```yaml
-annotations:
-  kagent.dev/openapi-path: "/openapi.json"
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: f5-wrapper-mcp
+spec:
+  url: "http://f5-wrapper.kagent:8080/mcp"
 ```
 
-This tells kagent to fetch the OpenAPI spec from the wrapper and register every endpoint as an available tool for the agent. No manual tool definitions needed — add a new router and kagent picks it up automatically.
+**Agent CRD** — binds the MCP server to an agent with HITL approval for destructive ops:
+```yaml
+tools:
+  - type: McpServer
+    mcpServer:
+      kind: RemoteMCPServer
+      name: f5-wrapper-mcp
+      requireApproval:
+        - create_pool
+        - delete_pool
+        - delete_virtual_server
+        # ... all write operations
+```
 
-## API Endpoints
+## MCP Tools (28 total)
 
-### Pools (`/api/v1/pools`)
+The MCP server at `/mcp` exposes these tools for kagent:
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/` | List all pools in a partition |
-| `GET` | `/{pool_name}` | Get pool details with members and status |
-| `POST` | `/` | Create a new pool with optional members |
-| `DELETE` | `/{pool_name}` | Delete a pool |
-| `GET` | `/{pool_name}/members` | List all members of a pool |
-| `POST` | `/{pool_name}/members` | Add a member to a pool |
-| `DELETE` | `/{pool_name}/members/{member_name}` | Remove a member from a pool |
-| `PATCH` | `/{pool_name}/members/{member_name}/state` | Enable/disable/force-offline a member |
+### Pools (8 tools)
+| Tool | Description |
+|------|-------------|
+| `list_pools` | List all LTM pools in a partition |
+| `get_pool` | Get pool details with members and status |
+| `create_pool` | Create a new pool with optional members |
+| `delete_pool` | Delete a pool |
+| `list_pool_members` | List all members of a pool |
+| `add_pool_member` | Add a member (address:port) to a pool |
+| `remove_pool_member` | Remove a member from a pool |
+| `set_pool_member_state` | Enable/disable/force-offline a member |
 
-### Virtual Servers (`/api/v1/virtual-servers`)
+### Virtual Servers (4 tools)
+| Tool | Description |
+|------|-------------|
+| `list_virtual_servers` | List all virtual servers |
+| `get_virtual_server` | Get VS details (profiles, iRules, pool) |
+| `create_virtual_server` | Create a virtual server |
+| `delete_virtual_server` | Delete a virtual server |
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/` | List all virtual servers |
-| `GET` | `/{vs_name}` | Get virtual server details (profiles, iRules, pool) |
-| `POST` | `/` | Create a virtual server |
-| `DELETE` | `/{vs_name}` | Delete a virtual server |
+### Nodes (5 tools)
+| Tool | Description |
+|------|-------------|
+| `list_nodes` | List all nodes |
+| `get_node` | Get node details |
+| `create_node` | Create a node |
+| `delete_node` | Delete a node |
+| `set_node_state` | Enable/disable/force-offline a node |
 
-### Nodes (`/api/v1/nodes`)
+### Monitors (4 tools)
+| Tool | Description |
+|------|-------------|
+| `list_monitors` | List all monitors |
+| `list_http_monitors` | List HTTP monitors |
+| `list_https_monitors` | List HTTPS monitors |
+| `list_tcp_monitors` | List TCP monitors |
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/` | List all nodes |
-| `GET` | `/{node_name}` | Get node details |
-| `POST` | `/` | Create a node |
-| `DELETE` | `/{node_name}` | Delete a node |
-| `PATCH` | `/{node_name}/state` | Enable/disable/force-offline a node |
+### iRules (2 tools)
+| Tool | Description |
+|------|-------------|
+| `list_irules` | List all iRules |
+| `get_irule` | Get iRule definition (TCL code) |
 
-### Monitors (`/api/v1/monitors`)
+### Certificates (2 tools)
+| Tool | Description |
+|------|-------------|
+| `list_certificates` | List all SSL certificates |
+| `get_certificate` | Get certificate details |
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/` | List all monitors |
-| `GET` | `/http` | List HTTP monitors |
-| `GET` | `/https` | List HTTPS monitors |
-| `GET` | `/tcp` | List TCP monitors |
+### System (4 tools)
+| Tool | Description |
+|------|-------------|
+| `system_info` | BIG-IP version, hostname, platform |
+| `failover_status` | HA failover status (active/standby) |
+| `system_performance` | Throughput, connections, CPU, memory |
+| `config_sync_status` | Config sync status across HA peers |
 
-### iRules (`/api/v1/irules`)
+### REST API
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/` | List all iRules |
-| `GET` | `/{irule_name}` | Get iRule definition (TCL code) |
+The same operations are also available as REST endpoints under `/api/v1/` for direct HTTP access. The OpenAPI docs are at `/docs`.
 
-### Certificates (`/api/v1/certificates`)
+### Health Check
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/` | List all SSL certificates |
-| `GET` | `/{cert_name}` | Get certificate details |
-
-### System (`/api/v1/system`)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/info` | BIG-IP version, hostname, platform |
-| `GET` | `/failover-status` | HA failover status (active/standby) |
-| `GET` | `/performance` | Throughput, connections, CPU, memory |
-| `GET` | `/config-sync-status` | Config sync status across HA peers |
-
-### Health (`/health`)
-
-Returns `{"status": "ok"}` — used by Kubernetes liveness and readiness probes.
+`GET /health` returns `{"status": "ok"}` — used by Kubernetes liveness and readiness probes.
 
 ## Configuration
 
@@ -134,21 +152,20 @@ f5-wrapper/
 ├── Dockerfile
 ├── requirements.txt
 ├── app/
-│   ├── main.py              # FastAPI app with lifespan (token init/teardown)
+│   ├── main.py              # FastAPI app + MCP mount at /mcp
+│   ├── mcp_server.py         # MCP tool definitions (28 tools)
 │   ├── config.py             # Pydantic Settings — env var configuration
 │   ├── auth.py               # F5 token manager (login, refresh, logout)
 │   ├── routers/
-│   │   ├── pools.py          # Pool + pool member CRUD
-│   │   ├── virtual_servers.py # Virtual server CRUD
-│   │   ├── nodes.py          # Node CRUD + state management
-│   │   ├── monitors.py       # Health monitor listing
-│   │   ├── irules.py         # iRule listing
-│   │   ├── certificates.py   # SSL certificate listing
-│   │   └── system.py         # System info, failover, performance
-│   ├── models/               # (Pydantic models are co-located in routers)
+│   │   ├── pools.py          # Pool + pool member CRUD (REST)
+│   │   ├── virtual_servers.py # Virtual server CRUD (REST)
+│   │   ├── nodes.py          # Node CRUD + state management (REST)
+│   │   ├── monitors.py       # Health monitor listing (REST)
+│   │   ├── irules.py         # iRule listing (REST)
+│   │   ├── certificates.py   # SSL certificate listing (REST)
+│   │   └── system.py         # System info, failover, performance (REST)
 │   └── utils/
 │       └── f5_client.py      # Reusable HTTP client for iControl REST
-└── tests/
 ```
 
 ## How the Auth Works
@@ -159,7 +176,7 @@ The F5 iControl REST API uses token-based authentication. The wrapper handles th
 2. **On each request** — `F5Client` calls `get_headers()` which checks if the token is expired (tokens last 1200s, we refresh at 960s) and re-authenticates if needed
 3. **On shutdown** — `F5TokenManager.logout()` deletes the token via `/mgmt/shared/authz/tokens/{token}`
 
-The token is stored in `app.state` so it's shared across all requests without creating a new session per call.
+The token is shared across both REST routers and MCP tools via `app.state` and a module-level reference in `mcp_server.py`.
 
 ## Local Development
 
@@ -175,9 +192,10 @@ pip install -r requirements.txt
 # Run the server
 uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
 
-# View the auto-generated OpenAPI docs
-# http://localhost:8080/docs       (Swagger UI)
-# http://localhost:8080/openapi.json (raw spec)
+# View the auto-generated docs
+# http://localhost:8080/docs         (Swagger UI for REST API)
+# http://localhost:8080/openapi.json (raw OpenAPI spec)
+# MCP endpoint: http://localhost:8080/mcp
 ```
 
 ## Docker
@@ -204,31 +222,41 @@ The wrapper runs as a Deployment in the `kagent` namespace alongside the kagent 
 | Manifest | What it does |
 |----------|-------------|
 | `01-external-secret.yaml` | Pulls F5 credentials from Vault into a K8s Secret |
-| `02-agent.yaml` | kagent Agent CRD — system prompt, memory, tool binding |
-| `03-deployment.yaml` | Deployment, Service (with OpenAPI annotation), NetworkPolicy |
+| `02-agent.yaml` | kagent Agent CRD — system prompt, skills, HITL approval, MCP tool binding |
+| `03-deployment.yaml` | Deployment, Service, RemoteMCPServer CRD, NetworkPolicy |
+
+### Setup
 
 ```bash
-# Store F5 creds in Vault first
+# 1. Store F5 creds in Vault
 kubectl exec -n vault vault-0 -- env VAULT_TOKEN=<token> \
-  vault kv put secret/f5 host="https://10.1.1.245" username="admin" password="<password>"
+  vault kv put secret/f5 \
+    host="https://10.1.1.245" \
+    username="admin" \
+    password="<password>"
 
-# Deploy everything
+# 2. Deploy (or let ArgoCD sync automatically)
 kubectl apply -f manifests/kagent-examples/f5-agent/
 
-# Verify
+# 3. Verify
 kubectl get pods -n kagent -l app=f5-wrapper
-curl http://f5-wrapper.kagent.svc:8080/health
-curl http://f5-wrapper.kagent.svc:8080/openapi.json | jq '.paths | keys'
+kubectl get agents f5-bigip-agent -n kagent
+kubectl get remotemcpservers f5-wrapper-mcp -n kagent
+
+# 4. Test the MCP endpoint
+kubectl run curl --rm -it --image=curlimages/curl -- \
+  curl -s http://f5-wrapper.kagent:8080/health
 ```
 
 ## Safety Guardrails
 
 | Guardrail | How it works |
 |-----------|-------------|
-| **Read-only mode** | Set `READ_ONLY=true` — all POST/PATCH/DELETE endpoints return 403 |
+| **HITL approval** | 10 destructive MCP tools require human approval via kagent's `requireApproval` before execution |
+| **Read-only mode** | Set `READ_ONLY=true` — all write operations return an error |
 | **Partition allow-list** | `ALLOWED_PARTITIONS` restricts which F5 partitions can be accessed |
 | **Network isolation** | NetworkPolicy allows ingress only from kagent namespace, egress only to F5 mgmt IP + DNS |
-| **Agent-level confirmation** | The kagent Agent CRD system prompt instructs the LLM to confirm before destructive ops |
+| **Agent-level confirmation** | System prompt instructs the LLM to summarize impact and confirm before destructive ops |
 | **HA awareness** | System prompt tells the agent to check failover status before writes |
 
 ## CI/CD
