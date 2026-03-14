@@ -1,14 +1,38 @@
-from fastapi import FastAPI
+from starlette.applications import Starlette
+from starlette.routing import Mount, Route
+from starlette.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.auth import F5TokenManager
 from app.mcp_server import mcp, set_token_manager
+
+# Import FastAPI app for REST routes
+from fastapi import FastAPI
 from app.routers import pools, virtual_servers, nodes, monitors, irules, certificates, system
 
 
+# Build the FastAPI sub-app (REST API only)
+rest_app = FastAPI(
+    title="F5 BIG-IP Automation API",
+    description="Wrapper API for F5 BIG-IP iControl REST",
+    version="1.0.0",
+)
+rest_app.include_router(pools.router, prefix="/api/v1/pools", tags=["Pools"])
+rest_app.include_router(virtual_servers.router, prefix="/api/v1/virtual-servers", tags=["Virtual Servers"])
+rest_app.include_router(nodes.router, prefix="/api/v1/nodes", tags=["Nodes"])
+rest_app.include_router(monitors.router, prefix="/api/v1/monitors", tags=["Monitors"])
+rest_app.include_router(irules.router, prefix="/api/v1/irules", tags=["iRules"])
+rest_app.include_router(certificates.router, prefix="/api/v1/certificates", tags=["Certificates"])
+rest_app.include_router(system.router, prefix="/api/v1/system", tags=["System"])
+
+
+async def health(request):
+    return JSONResponse({"status": "ok"})
+
+
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app):
     tm = F5TokenManager(
         host=settings.F5_HOST,
         username=settings.F5_USERNAME,
@@ -16,32 +40,22 @@ async def lifespan(app: FastAPI):
         verify_ssl=settings.F5_VERIFY_SSL,
     )
     await tm.login()
-    app.state.token_manager = tm
     set_token_manager(tm)
+    # Also set on REST app for router compatibility
+    rest_app.state.token_manager = tm
     yield
     await tm.logout()
 
 
-app = FastAPI(
-    title="F5 BIG-IP Automation API",
-    description="Wrapper API for F5 BIG-IP iControl REST — designed for AI agent consumption via kagent",
-    version="1.0.0",
-    lifespan=lifespan,
-)
-
-app.include_router(pools.router, prefix="/api/v1/pools", tags=["Pools"])
-app.include_router(virtual_servers.router, prefix="/api/v1/virtual-servers", tags=["Virtual Servers"])
-app.include_router(nodes.router, prefix="/api/v1/nodes", tags=["Nodes"])
-app.include_router(monitors.router, prefix="/api/v1/monitors", tags=["Monitors"])
-app.include_router(irules.router, prefix="/api/v1/irules", tags=["iRules"])
-app.include_router(certificates.router, prefix="/api/v1/certificates", tags=["Certificates"])
-app.include_router(system.router, prefix="/api/v1/system", tags=["System"])
-
-# Mount MCP streamable-HTTP endpoint for kagent tool discovery
+# Build the MCP streamable-HTTP app (has its own lifespan for task group)
 mcp_app = mcp.streamable_http_app()
-app.mount("/mcp", mcp_app)
 
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+# Main Starlette app — routes health + REST at /api, MCP at /mcp
+app = Starlette(
+    lifespan=lifespan,
+    routes=[
+        Route("/health", health),
+        Mount("/mcp", app=mcp_app),
+        Mount("/", app=rest_app),
+    ],
+)
