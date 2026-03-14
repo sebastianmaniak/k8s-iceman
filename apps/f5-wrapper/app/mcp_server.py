@@ -69,7 +69,7 @@ async def create_pool(
     partition: str = "Common",
     monitor: str = "/Common/http",
     lb_method: str = "round-robin",
-    members: Optional[str] = None,
+    members: Optional[str | list] = None,
 ) -> str:
     """Create a new LTM pool. members is a JSON array of objects with 'name' (address:port) and optional 'description'."""
     if settings.READ_ONLY:
@@ -81,7 +81,7 @@ async def create_pool(
         "loadBalancingMode": lb_method,
     }
     if members:
-        payload["members"] = json.loads(members)
+        payload["members"] = json.loads(members) if isinstance(members, str) else members
     data = await _client().post("/mgmt/tm/ltm/pool", payload)
     return _json(data)
 
