@@ -419,11 +419,12 @@ async def handle_message(update: Update, _) -> None:
     thinking_msg = await update.message.reply_text("Thinking...")
 
     try:
-        result = await send_a2a_task(user_text, session_id)
+        context_id = user_contexts.get(user_id)
+        result = await send_a2a_task(user_text, session_id, context_id)
         # Store contextId for conversation continuity
         ctx = result.get("contextId")
         if ctx:
-            user_sessions[user_id] = ctx
+            user_contexts[user_id] = ctx
         await _handle_a2a_result(result, user_id, session_id, thinking_msg)
     except Exception as e:
         logger.exception("A2A request failed")
