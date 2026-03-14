@@ -1,6 +1,5 @@
 """Telegram bot that forwards messages to a kagent A2A agent."""
 
-import asyncio
 import json
 import logging
 import os
@@ -29,7 +28,7 @@ HEALTH_FILE = Path("/tmp/bot-healthy")
 # Per-user contextId for conversation continuity (maps Telegram user_id -> kagent contextId)
 user_contexts: dict[int, str] = {}
 
-# Pending approval tasks: callback_id -> {context_id, user_id}
+# Pending approval tasks: callback_id -> {context_id, task_id, user_id}
 pending_approvals: dict[str, dict] = {}
 
 
@@ -46,10 +45,9 @@ def _parse_adk_confirmation(data: dict) -> dict | None:
     """Parse an adk_request_confirmation DataPart into a structured dict.
 
     Returns None if the data is not an ADK confirmation.
-    Returns: {type: "approval"|"ask_user", tool_name, tool_args, hint, questions, function_call_id}
+    Returns: {type: "approval"|"ask_user", tool_name, tool_args, hint, questions}
     """
     if data.get("name") == "adk_request_confirmation":
-        function_call_id = data.get("id", "")
         args = data.get("args", {})
         func_call = args.get("originalFunctionCall", {})
         tool_name = func_call.get("name", "")
@@ -57,15 +55,12 @@ def _parse_adk_confirmation(data: dict) -> dict | None:
         hint = args.get("toolConfirmation", {}).get("hint", "")
 
         if tool_name == "ask_user":
-            # ask_user tool — extract questions from args
             questions = tool_args.get("questions", [])
             if isinstance(questions, str):
                 questions = [{"question": questions}]
-            return {"type": "ask_user", "tool_name": tool_name, "questions": questions,
-                    "hint": hint, "function_call_id": function_call_id}
+            return {"type": "ask_user", "tool_name": tool_name, "questions": questions, "hint": hint}
 
-        return {"type": "approval", "tool_name": tool_name, "tool_args": tool_args,
-                "hint": hint, "function_call_id": function_call_id}
+        return {"type": "approval", "tool_name": tool_name, "tool_args": tool_args, "hint": hint}
 
     # Generic A2A format
     if data.get("toolName"):
@@ -74,7 +69,6 @@ def _parse_adk_confirmation(data: dict) -> dict | None:
             "tool_name": data["toolName"],
             "tool_args": data.get("parameters", {}),
             "hint": "",
-            "function_call_id": data.get("id", ""),
         }
 
     return None
@@ -124,7 +118,6 @@ def _format_ask_user(parsed: dict) -> tuple[str, list[str]]:
     if not questions:
         return "The agent is asking for input.", []
 
-    # Collect all question texts and choices
     q_texts = []
     all_choices = []
     for q in questions:
@@ -171,8 +164,6 @@ def _extract_text(result: dict) -> str | None:
     return None
 
 
-
-
 # ---------------------------------------------------------------------------
 # A2A communication
 # ---------------------------------------------------------------------------
@@ -180,8 +171,9 @@ def _extract_text(result: dict) -> str | None:
 async def _send_a2a_request(
     message_text: str,
     context_id: str | None = None,
+    task_id: str | None = None,
 ) -> dict:
-    """Send a message to the kagent A2A endpoint and return the raw result."""
+    """Send a text message to the kagent A2A endpoint and return the raw result."""
     message = {
         "role": "user",
         "kind": "message",
@@ -190,12 +182,14 @@ async def _send_a2a_request(
     }
     if context_id:
         message["contextId"] = context_id
+    if task_id:
+        message["taskId"] = task_id
 
     payload = {
         "jsonrpc": "2.0",
         "id": message["messageId"],
         "method": "message/send",
-        "params": {"message": message},
+        "params": {"message": message, "metadata": {}},
     }
 
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -208,22 +202,35 @@ async def _send_a2a_request(
         data = resp.json()
 
     result = data.get("result", {})
-    logger.info("A2A state=%s contextId=%s (sent contextId=%s)",
-                result.get("status", {}).get("state"), result.get("contextId"), context_id)
+    state = result.get("status", {}).get("state")
+    logger.info("A2A state=%s contextId=%s taskId=%s",
+                state, result.get("contextId"), result.get("id"))
     return result
 
 
-async def send_a2a_message(message_text: str, context_id: str | None = None) -> dict:
-    """Send a message to the kagent A2A endpoint."""
-    return await _send_a2a_request(message_text, context_id)
-
-
-async def send_a2a_confirmation(
-    function_call_id: str,
-    confirmed: bool,
+async def send_a2a_message(
+    message_text: str,
     context_id: str | None = None,
+    task_id: str | None = None,
 ) -> dict:
-    """Send a structured HITL confirmation response via A2A."""
+    """Send a message to the kagent A2A endpoint."""
+    return await _send_a2a_request(message_text, context_id, task_id)
+
+
+async def send_a2a_decision(
+    decision: str,
+    context_id: str | None = None,
+    task_id: str | None = None,
+) -> dict:
+    """Send a kagent HITL decision via A2A.
+
+    kagent expects a DataPart with {"decision_type": "approve"|"deny"} — NOT
+    an ADK function_response.  The backend's extract_decision_from_data_part()
+    looks for data.get("decision_type") and handles the rest internally.
+    """
+    decision_type = "approve" if decision == "approve" else "deny"
+    decision_label = "Approved" if decision == "approve" else "Denied"
+
     message_id = str(uuid.uuid4())
     message = {
         "role": "user",
@@ -232,25 +239,28 @@ async def send_a2a_confirmation(
         "parts": [
             {
                 "kind": "data",
-                "data": {
-                    "function_response": {
-                        "id": function_call_id,
-                        "name": "adk_request_confirmation",
-                        "response": {"confirmed": confirmed},
-                    }
-                },
-            }
+                "data": {"decision_type": decision_type},
+                "metadata": {},
+            },
+            {
+                "kind": "text",
+                "text": decision_label,
+            },
         ],
     }
     if context_id:
         message["contextId"] = context_id
+    if task_id:
+        message["taskId"] = task_id
 
     payload = {
         "jsonrpc": "2.0",
         "id": message_id,
         "method": "message/send",
-        "params": {"message": message},
+        "params": {"message": message, "metadata": {}},
     }
+
+    logger.info("Sending HITL decision=%s contextId=%s taskId=%s", decision_type, context_id, task_id)
 
     async with httpx.AsyncClient(timeout=120.0) as client:
         resp = await client.post(
@@ -262,8 +272,9 @@ async def send_a2a_confirmation(
         data = resp.json()
 
     result = data.get("result", {})
-    logger.info("A2A confirmation state=%s contextId=%s confirmed=%s",
-                result.get("status", {}).get("state"), result.get("contextId"), confirmed)
+    state = result.get("status", {}).get("state")
+    logger.info("A2A decision response state=%s contextId=%s taskId=%s",
+                state, result.get("contextId"), result.get("id"))
     return result
 
 
@@ -334,10 +345,12 @@ async def _handle_input_required(
 ) -> None:
     """Handle an input-required A2A result — show approval buttons or a question."""
     context_id = result.get("contextId", "")
+    task_id = result.get("id", "")
     kind, parsed = _classify_input_required(result)
 
     task_info = {
         "context_id": context_id,
+        "task_id": task_id,
         "user_id": user_id,
     }
 
@@ -345,7 +358,6 @@ async def _handle_input_required(
         # Tool approval — show a clean description with Approve / Reject buttons
         description = _format_approval_text(parsed)
         callback_id = str(uuid.uuid4())[:8]
-        task_info["function_call_id"] = parsed.get("function_call_id", "")
         pending_approvals[callback_id] = task_info
 
         keyboard = InlineKeyboardMarkup([
@@ -462,27 +474,20 @@ async def handle_callback(update: Update, _) -> None:
         return
 
     context_id = approval.get("context_id", "")
+    task_id = approval.get("task_id", "")
     user_id = approval["user_id"]
-
-    function_call_id = approval.get("function_call_id", "")
 
     try:
         if action == "approve":
             await query.edit_message_text("Approved. Processing...")
-            if function_call_id:
-                result = await send_a2a_confirmation(function_call_id, True, context_id)
-            else:
-                result = await send_a2a_message("approved", context_id)
+            result = await send_a2a_decision("approve", context_id, task_id)
         elif action == "reject":
             await query.edit_message_text("Rejected.")
-            if function_call_id:
-                result = await send_a2a_confirmation(function_call_id, False, context_id)
-            else:
-                result = await send_a2a_message("rejected", context_id)
+            result = await send_a2a_decision("deny", context_id, task_id)
         elif action == "choice":
             choice_value = parts[2] if len(parts) > 2 else ""
             await query.edit_message_text(f"Selected: {choice_value}")
-            result = await send_a2a_message(choice_value, context_id)
+            result = await send_a2a_message(choice_value, context_id, task_id)
         else:
             return
 
