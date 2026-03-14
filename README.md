@@ -21,12 +21,20 @@ GitHub Repo (this repo)          Argo CD                    Talos k8s Cluster
 │    vault/values.yaml │    └──────────────┘    │                             │
 │    kagent/values.yaml│           │            │  kagent                     │
 │    ...               │           │            │    kagent (AI agents)       │
-│                      │           │            │                             │
-│  manifests/          │           │            │  agentgateway-system        │
-│    vault-config/     │───────────┘            │    agentgateway (AI proxy)  │
-│      ClusterSecret   │                        │                             │
-│      ExternalSecret  │  Vault ──> ESO ──> K8s │  longhorn-system (existing) │
-└──────────────────────┘    Secrets flow        └─────────────────────────────┘
+│                      │           │            │    telegram-bot ──> A2A     │
+│  manifests/          │           │            │                             │
+│    vault-config/     │───────────┘            │  agentgateway-system        │
+│      ClusterSecret   │                        │    agentgateway (AI proxy)  │
+│      ExternalSecret  │  Vault ──> ESO ──> K8s │                             │
+│                      │    Secrets flow        │  longhorn-system (existing) │
+│  .github/workflows/  │                        └─────────────────────────────┘
+│    telegram-bot CI   │──> Docker Hub ──> sebbycorp/telegram-kagent-bot
+└──────────────────────┘
+
+Telegram User ──> Telegram API ──> telegram-bot pod ──(A2A)──> kagent-controller
+                                       │                            │
+                                   Approve/Reject              Tool execution
+                                   ask_user replies            (K8s, Helm, Istio)
 ```
 
 ## Repository Structure
@@ -49,6 +57,10 @@ k8s-iceman/
 │   ├── agentgateway-crds.yaml       # [Wave 4] agentgateway CRDs
 │   ├── agentgateway.yaml            # [Wave 5] agentgateway AI proxy
 │   └── vault-config.yaml            # [Wave 6] SecretStore + ExternalSecrets
+├── apps/telegram-bot-src/            # Telegram bot source code
+│   ├── main.py                      # Bot implementation (A2A + HITL)
+│   ├── requirements.txt             # Python dependencies
+│   └── Dockerfile                   # Container image build
 ├── helm-values/                      # Helm value overrides (GitOps managed)
 │   ├── vault/values.yaml            # Standalone mode, Longhorn storage
 │   ├── external-secrets/values.yaml
@@ -64,10 +76,15 @@ k8s-iceman/
 │   ├── vault-config/
 │   │   ├── cluster-secret-store.yaml # ClusterSecretStore -> Vault
 │   │   └── external-secret-kagent.yaml # ExternalSecrets for LLM API keys
+│   ├── kagent-examples/
+│   │   ├── telegram-bot/            # Telegram bot agent + deployment
+│   │   └── human-in-the-loop/       # HITL approval examples
 │   └── service-nodeports/           # NodePort services for F5 BIG-IP
 │       ├── argocd-nodeport.yaml
 │       ├── vault-nodeport.yaml
 │       └── kagent-nodeport.yaml
+├── .github/workflows/                # CI/CD
+│   └── telegram-bot-docker.yaml     # Build + push bot image to Docker Hub
 └── terraform/                        # Infrastructure as Code
     └── f5-bigip/                    # F5 BIG-IP VIP configuration
         ├── main.tf                  # Provider config
@@ -240,6 +257,88 @@ Client ──> F5 BIG-IP VIP (172.16.20.60:443)
                         │
                     argocd-server pod
 ```
+
+## Telegram Bot
+
+A Telegram bot provides a chat interface to the kagent Kubernetes agent, allowing you to manage your cluster directly from Telegram.
+
+### Features
+
+- **Natural language K8s operations** -- ask the bot to list pods, check logs, create resources, etc.
+- **Human-in-the-loop (HITL) approval** -- destructive operations (`k8s_apply_manifest`, `k8s_delete_resource`, `k8s_scale`, `k8s_create_resource`, `helm_upgrade`, `helm_uninstall`) require explicit approval via inline Approve/Reject buttons before execution
+- **Interactive questions (`ask_user`)** -- the agent can ask clarifying questions with selectable choices (inline buttons) or free-text input before taking action
+- **Session management** -- per-user conversation sessions with `/new` to reset
+- **A2A protocol** -- communicates with kagent via the Agent-to-Agent (A2A) JSON-RPC protocol
+
+### How HITL Works in Telegram
+
+When you ask the bot to perform a mutating operation (e.g., "create a staging namespace"), the flow is:
+
+1. Bot sends your request to the kagent agent via A2A
+2. Agent decides it needs to use a tool that requires approval (e.g., `k8s_create_resource`)
+3. Agent returns an `input-required` status with the tool details
+4. Bot shows you a clean summary of what the agent wants to do, with **Approve** / **Reject** buttons
+5. You tap a button, and the bot sends your decision back to the agent
+6. Agent executes (or aborts) and returns the result
+
+For `ask_user` questions, the agent can present choices as tappable buttons or ask for free-text input.
+
+### Bot Commands
+
+| Command | Description |
+|---------|-------------|
+| `/start` | Show help and available commands |
+| `/new` | Reset your conversation session |
+| `/status` | Check connectivity to the kagent agent |
+
+### Deployment
+
+The bot runs as a Deployment in the `kagent` namespace. It uses polling (no ingress needed).
+
+**Image:** `docker.io/sebbycorp/telegram-kagent-bot:latest`
+
+**Required secrets:**
+- `TELEGRAM_BOT_TOKEN` -- from Vault via External Secrets (`secret/telegram`)
+- `KAGENT_A2A_URL` -- set in the deployment manifest (points to kagent-controller A2A endpoint)
+
+**Agent configuration:** `manifests/kagent-examples/telegram-bot/02-agent.yaml`
+**Deployment manifest:** `manifests/kagent-examples/telegram-bot/03-deployment.yaml`
+
+### Local Development
+
+```bash
+cd apps/telegram-bot-src
+
+# Build the image
+docker build -t sebbycorp/telegram-kagent-bot:latest .
+
+# Push to Docker Hub
+docker push sebbycorp/telegram-kagent-bot:latest
+
+# Restart the deployment to pick up the new image
+kubectl rollout restart deployment telegram-bot -n kagent
+```
+
+## CI/CD
+
+### Telegram Bot Docker Image
+
+A GitHub Actions workflow automatically builds and pushes the Telegram bot Docker image when changes are made to `apps/telegram-bot-src/`.
+
+**Workflow:** `.github/workflows/telegram-bot-docker.yaml`
+
+**Triggers:**
+- Push to `main` when `apps/telegram-bot-src/` files change
+- Manual trigger via `workflow_dispatch`
+- PRs build the image (for validation) but do not push
+
+**Image tags:**
+- `latest` -- on pushes to `main`
+- `<git-sha>` -- on every build (e.g., `sebbycorp/telegram-kagent-bot:a1b2c3d`)
+
+**Required GitHub secrets:**
+- `DOCKERHUB_USERNAME` -- Docker Hub username
+- `DOCKERHUB_TOKEN` -- Docker Hub access token
 
 ## Making Changes (GitOps Workflow)
 

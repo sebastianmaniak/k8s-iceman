@@ -1,13 +1,14 @@
 # Agent: Telegram K8s Agent
 # This agent is invoked via A2A by the Telegram bot deployment.
-# It has access to kagent-tool-server for K8s, Helm, Istio, and Prometheus tools.
+# Focused on K8s resource management: create, apply, build, and inspect.
+# Destructive/mutating operations require user approval via HITL.
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
   name: telegram-k8s-agent
   namespace: kagent
 spec:
-  description: "Kubernetes operations agent accessible via Telegram bot"
+  description: "Kubernetes resource management agent accessible via Telegram bot"
   type: Declarative
   declarative:
     modelConfig: default-model-config
@@ -15,38 +16,53 @@ spec:
       skills:
         - id: k8s-operations
           name: Kubernetes Operations
-          description: "Query, manage, and troubleshoot Kubernetes resources"
+          description: "Create, apply, inspect, and manage Kubernetes resources"
           examples:
+            - "Create a new staging namespace"
+            - "Apply a deployment for nginx"
             - "What pods are running in the default namespace?"
-            - "Show me the logs for pod X"
-            - "What Helm releases are installed?"
+            - "Show me the events in namespace kagent"
+            - "Scale the nginx deployment to 3 replicas"
           tags:
             - kubernetes
             - operations
-        - id: cluster-monitoring
-          name: Cluster Monitoring
-          description: "Query Prometheus metrics and monitor cluster health"
-          examples:
-            - "What is the CPU usage across nodes?"
-            - "Show me the memory usage for namespace kagent"
-          tags:
-            - monitoring
-            - prometheus
+    # Long-term memory — remembers user preferences, namespaces, and
+    # past operations across conversations (vector-backed via SQLite).
+    memory:
+      modelConfig: openai-embed
+    # Context compaction — automatically summarizes older messages in long
+    # conversations so the agent doesn't lose track during extended sessions.
+    context:
+      compaction:
+        tokenThreshold: 120000
+        eventRetentionSize: 80
+        overlapSize: 8
     promptTemplate:
       dataSources:
         - kind: ConfigMap
           name: kagent-builtin-prompts
           alias: builtin
     systemMessage: |
-      You are {{.AgentName}}, a Kubernetes operations agent accessible via Telegram.
+      You are {{.AgentName}}, a Kubernetes resource management agent accessible via Telegram.
 
       {{include "builtin/safety-guardrails"}}
       {{include "builtin/tool-usage-best-practices"}}
       {{include "builtin/kubernetes-context"}}
 
-      You help users manage their Kubernetes cluster through Telegram messages.
-      Keep responses concise and well-formatted for chat readability.
-      Use short code blocks for YAML/logs. Summarize large outputs.
+      Your primary role is helping users create, apply, inspect, and manage Kubernetes resources.
+      You can:
+      - Create namespaces, deployments, services, configmaps, and other K8s resources
+      - Apply YAML manifests to the cluster
+      - Inspect running resources (pods, deployments, services, events, logs)
+      - Scale deployments and manage rollouts
+      - Describe resources and troubleshoot issues
+
+      Guidelines:
+      - Keep responses concise and well-formatted for Telegram chat
+      - Use short code blocks for YAML and logs
+      - Summarize large outputs — don't dump full resource lists
+      - When creating resources, confirm the namespace and resource details before applying
+      - Mutating operations (create, apply, delete, scale) require user approval — explain what you plan to do first
 
       Available tools: {{.ToolNames}}
     tools:
@@ -56,34 +72,23 @@ spec:
           kind: RemoteMCPServer
           name: kagent-tool-server
           toolNames:
+            # --- Read / Inspect ---
             - k8s_get_resources
             - k8s_describe_resource
             - k8s_get_pod_logs
             - k8s_get_events
             - k8s_get_resource_yaml
             - k8s_get_available_api_resources
-            - k8s_get_cluster_configuration
+            # --- Create / Apply / Mutate ---
+            - k8s_create_resource
             - k8s_apply_manifest
             - k8s_delete_resource
             - k8s_scale
+            - k8s_rollout
             - k8s_label_resource
             - k8s_annotate_resource
-            - k8s_rollout
-            - k8s_check_service_connectivity
-            - k8s_execute_command
-            - helm_list_releases
-            - helm_get_release
-            - helm_upgrade
-            - helm_uninstall
-            - istio_proxy_status
-            - istio_analyze_cluster_configuration
-            - istio_version
-            - k8s_create_resource
-            - datetime_get_current_time
           requireApproval:
-            - k8s_delete_resource
-            - k8s_apply_manifest
-            - k8s_scale
-            - helm_upgrade
-            - helm_uninstall
             - k8s_create_resource
+            - k8s_apply_manifest
+            - k8s_delete_resource
+            - k8s_scale
