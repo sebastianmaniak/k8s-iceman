@@ -46,9 +46,10 @@ def _parse_adk_confirmation(data: dict) -> dict | None:
     """Parse an adk_request_confirmation DataPart into a structured dict.
 
     Returns None if the data is not an ADK confirmation.
-    Returns: {type: "approval"|"ask_user", tool_name, tool_args, hint, questions}
+    Returns: {type: "approval"|"ask_user", tool_name, tool_args, hint, questions, function_call_id}
     """
     if data.get("name") == "adk_request_confirmation":
+        function_call_id = data.get("id", "")
         args = data.get("args", {})
         func_call = args.get("originalFunctionCall", {})
         tool_name = func_call.get("name", "")
@@ -60,9 +61,11 @@ def _parse_adk_confirmation(data: dict) -> dict | None:
             questions = tool_args.get("questions", [])
             if isinstance(questions, str):
                 questions = [{"question": questions}]
-            return {"type": "ask_user", "tool_name": tool_name, "questions": questions, "hint": hint}
+            return {"type": "ask_user", "tool_name": tool_name, "questions": questions,
+                    "hint": hint, "function_call_id": function_call_id}
 
-        return {"type": "approval", "tool_name": tool_name, "tool_args": tool_args, "hint": hint}
+        return {"type": "approval", "tool_name": tool_name, "tool_args": tool_args,
+                "hint": hint, "function_call_id": function_call_id}
 
     # Generic A2A format
     if data.get("toolName"):
@@ -71,6 +74,7 @@ def _parse_adk_confirmation(data: dict) -> dict | None:
             "tool_name": data["toolName"],
             "tool_args": data.get("parameters", {}),
             "hint": "",
+            "function_call_id": data.get("id", ""),
         }
 
     return None
@@ -214,6 +218,55 @@ async def send_a2a_message(message_text: str, context_id: str | None = None) -> 
     return await _send_a2a_request(message_text, context_id)
 
 
+async def send_a2a_confirmation(
+    function_call_id: str,
+    confirmed: bool,
+    context_id: str | None = None,
+) -> dict:
+    """Send a structured HITL confirmation response via A2A."""
+    message_id = str(uuid.uuid4())
+    message = {
+        "role": "user",
+        "kind": "message",
+        "messageId": message_id,
+        "parts": [
+            {
+                "kind": "data",
+                "data": {
+                    "function_response": {
+                        "id": function_call_id,
+                        "name": "adk_request_confirmation",
+                        "response": {"confirmed": confirmed},
+                    }
+                },
+            }
+        ],
+    }
+    if context_id:
+        message["contextId"] = context_id
+
+    payload = {
+        "jsonrpc": "2.0",
+        "id": message_id,
+        "method": "message/send",
+        "params": {"message": message},
+    }
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.post(
+            KAGENT_A2A_URL,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+    result = data.get("result", {})
+    logger.info("A2A confirmation state=%s contextId=%s confirmed=%s",
+                result.get("status", {}).get("state"), result.get("contextId"), confirmed)
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Telegram command handlers
 # ---------------------------------------------------------------------------
@@ -292,6 +345,7 @@ async def _handle_input_required(
         # Tool approval — show a clean description with Approve / Reject buttons
         description = _format_approval_text(parsed)
         callback_id = str(uuid.uuid4())[:8]
+        task_info["function_call_id"] = parsed.get("function_call_id", "")
         pending_approvals[callback_id] = task_info
 
         keyboard = InlineKeyboardMarkup([
@@ -410,21 +464,28 @@ async def handle_callback(update: Update, _) -> None:
     context_id = approval.get("context_id", "")
     user_id = approval["user_id"]
 
-    if action == "approve":
-        await query.edit_message_text("Approved. Processing...")
-        reply_text = "approved"
-    elif action == "reject":
-        await query.edit_message_text("Rejected.")
-        reply_text = "rejected"
-    elif action == "choice":
-        choice_value = parts[2] if len(parts) > 2 else ""
-        await query.edit_message_text(f"Selected: {choice_value}")
-        reply_text = choice_value
-    else:
-        return
+    function_call_id = approval.get("function_call_id", "")
 
     try:
-        result = await send_a2a_message(reply_text, context_id)
+        if action == "approve":
+            await query.edit_message_text("Approved. Processing...")
+            if function_call_id:
+                result = await send_a2a_confirmation(function_call_id, True, context_id)
+            else:
+                result = await send_a2a_message("approved", context_id)
+        elif action == "reject":
+            await query.edit_message_text("Rejected.")
+            if function_call_id:
+                result = await send_a2a_confirmation(function_call_id, False, context_id)
+            else:
+                result = await send_a2a_message("rejected", context_id)
+        elif action == "choice":
+            choice_value = parts[2] if len(parts) > 2 else ""
+            await query.edit_message_text(f"Selected: {choice_value}")
+            result = await send_a2a_message(choice_value, context_id)
+        else:
+            return
+
         ctx = result.get("contextId")
         if ctx:
             user_contexts[user_id] = ctx
