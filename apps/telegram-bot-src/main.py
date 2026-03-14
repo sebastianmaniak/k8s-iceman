@@ -28,6 +28,7 @@ HEALTH_FILE = Path("/tmp/bot-healthy")
 
 # Per-user session tracking for conversation continuity
 user_sessions: dict[int, str] = {}
+user_contexts: dict[int, str] = {}
 
 # Pending approval tasks: callback_id -> {task_id, context_id, session_id, user_id}
 pending_approvals: dict[str, dict] = {}
@@ -255,6 +256,7 @@ async def new_command(update: Update, _) -> None:
     """Reset the user's A2A session."""
     uid = update.effective_user.id
     user_sessions[uid] = str(uuid.uuid4())
+    user_contexts.pop(uid, None)
     pending_input.pop(uid, None)
     await update.message.reply_text("New session started.")
 
