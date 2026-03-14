@@ -31,6 +31,10 @@ async def health(request):
     return JSONResponse({"status": "ok"})
 
 
+# Build the MCP streamable-HTTP app (has its own lifespan for task group)
+mcp_app = mcp.streamable_http_app()
+
+
 @asynccontextmanager
 async def lifespan(app):
     tm = F5TokenManager(
@@ -43,12 +47,11 @@ async def lifespan(app):
     set_token_manager(tm)
     # Also set on REST app for router compatibility
     rest_app.state.token_manager = tm
-    yield
+    # Trigger MCP sub-app lifespan to initialize its task group
+    async with mcp_app.router.lifespan_context(mcp_app):
+        yield
     await tm.logout()
 
-
-# Build the MCP streamable-HTTP app (has its own lifespan for task group)
-mcp_app = mcp.streamable_http_app()
 
 # Main Starlette app — routes health + REST at /api, MCP at /mcp
 app = Starlette(
