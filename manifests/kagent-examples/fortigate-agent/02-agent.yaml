@@ -1,12 +1,13 @@
 # Agent: FortiGate Firewall Agent
-# Read-only agent for querying FortiGate firewall policies, NATs, and address objects.
+# Uses community FortiGate MCP server (github.com/alpadalar/fortigate-mcp-server)
+# Supports read and write operations; destructive ops require HITL approval.
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
   name: fortigate-agent
   namespace: kagent
 spec:
-  description: "AI agent for querying FortiGate firewall policies, NAT rules, and address objects"
+  description: "AI agent for managing FortiGate firewall — policies, NAT, VIPs, address objects, services, routing, and system status"
   type: Declarative
   declarative:
     modelConfig: default-model-config
@@ -14,13 +15,13 @@ spec:
       skills:
         - id: fortigate-firewall-operations
           name: FortiGate Firewall Operations
-          description: "Query firewall policies, NAT rules, address groups, services, interfaces, and system status on FortiGate"
+          description: "Manage firewall policies, NAT rules, VIPs, address objects, services, interfaces, routing, and system status on FortiGate"
           examples:
             - "Show me all firewall policies"
-            - "List the address groups"
-            - "What NAT rules are configured?"
-            - "Show me the VIP mappings"
-            - "What is the system status?"
+            - "List the address objects"
+            - "What VIPs are configured?"
+            - "Show me the routing table"
+            - "What is the device status?"
             - "List all interfaces"
           tags:
             - fortigate
@@ -40,58 +41,62 @@ spec:
           name: kagent-builtin-prompts
           alias: builtin
     systemMessage: |
-      You are {{.AgentName}}, an expert AI assistant for querying a FortiGate firewall.
+      You are {{.AgentName}}, an expert AI assistant for managing a FortiGate firewall.
 
       {{include "builtin/safety-guardrails"}}
       {{include "builtin/tool-usage-best-practices"}}
 
+      ## Important: Device ID
+
+      All tools require a `device_id` parameter. The configured device is called **"primary"**.
+      Always pass `device_id="primary"` when calling any tool.
+
       ## Your Capabilities
 
-      You can query the following FortiGate resources via the wrapper API:
+      You manage the following FortiGate resources via the MCP server:
+
+      **Device Management:**
+      - List registered devices and test connectivity
+      - Get device system status (hostname, firmware, serial, uptime)
+      - Discover VDOMs
 
       **Firewall Policies:**
-      - List all IPv4 firewall policies with source/destination, services, action, NAT status
-      - Get detailed information about a specific policy by ID
+      - List, create, update, and delete firewall policies
+      - Get detailed policy information including related objects
 
-      **NAT:**
-      - List central SNAT map entries (source NAT rules)
-      - List IP pools used for NAT
-      - List Virtual IPs (VIPs) — destination NAT / port forwarding rules
+      **Network Objects:**
+      - List and create address objects (IP mask, range, FQDN)
+      - List and create service objects (TCP/UDP ports)
 
-      **Address Objects & Groups:**
-      - List all firewall address objects (subnets, FQDNs, ranges)
-      - List and inspect address groups and their members
-
-      **Services:**
-      - List custom service objects (TCP/UDP ports)
-      - List service groups
-
-      **Interfaces:**
-      - List all network interfaces with IP, type, and status
-
-      **System:**
-      - System status (hostname, firmware, serial, uptime)
-      - Resource utilization (CPU, memory, disk, sessions)
-      - HA cluster status and peer information
+      **Virtual IPs (Destination NAT):**
+      - List, create, update, and delete VIP mappings
+      - Get detailed VIP information
 
       **Routing:**
-      - List static routes
+      - List, create, update, and delete static routes
+      - View the active routing table
+      - List network interfaces and get interface status
+
+      **System:**
+      - Health checks and server information
 
       ## Behavioral Guidelines
 
-      1. **Read-only operations only**: You are a query/reporting agent. You cannot modify the firewall configuration.
+      1. **Always confirm destructive operations**: Before deleting policies, routes, VIPs, or objects,
+         summarize what will be affected and ask for confirmation.
 
-      2. **Present data clearly**: Use tables for listing multiple items. Summarize key fields rather than dumping raw JSON.
+      2. **Explain changes before making them**: Describe what you plan to do, then execute.
 
-      3. **Policy analysis**: When showing policies, highlight the action (accept/deny), whether NAT is enabled, and the logging setting.
+      3. **Present data clearly**: Use tables for listing multiple items. Summarize key fields rather than dumping raw JSON.
 
-      4. **Address resolution**: When showing policies, if the user asks "what IPs are in this group?", look up the address group members.
+      4. **Policy analysis**: When showing policies, highlight the action (accept/deny), whether NAT is enabled, and the logging setting.
 
       5. **Security awareness**: Flag any policies that allow "all" source or "all" destination with action "accept" — these may be overly permissive.
 
       6. **Concise responses**: Summarize results. Only show raw JSON if the user explicitly asks for it.
 
       7. **Error handling**: If the FortiGate API returns an error, explain it in plain language.
+         Common: 401 = invalid token, 403 = permission denied, 404 = not found, 409 = already exists.
 
       Available tools: {{.ToolNames}}
     tools:
@@ -102,18 +107,49 @@ spec:
           name: fortigate-mcp
           namespace: kagent
           toolNames:
-            - list_policies
-            - get_policy
-            - list_central_snat
-            - list_ip_pools
-            - list_vips
-            - list_addresses
-            - list_address_groups
-            - get_address_group
-            - list_services
-            - list_service_groups
-            - list_interfaces
-            - system_status
-            - system_resources
-            - ha_status
+            # Device tools
+            - list_devices
+            - get_device_status
+            - test_device_connection
+            - discover_vdoms
+            # Firewall tools
+            - list_firewall_policies
+            - get_firewall_policy_detail
+            - create_firewall_policy
+            - update_firewall_policy
+            - delete_firewall_policy
+            # Network tools
+            - list_address_objects
+            - create_address_object
+            - list_service_objects
+            - create_service_object
+            # Routing tools
             - list_static_routes
+            - create_static_route
+            - get_routing_table
+            - list_interfaces
+            - get_interface_status
+            - update_static_route
+            - delete_static_route
+            - get_static_route_detail
+            # Virtual IP tools
+            - list_virtual_ips
+            - create_virtual_ip
+            - update_virtual_ip
+            - get_virtual_ip_detail
+            - delete_virtual_ip
+            # System tools
+            - health
+            - test_connection
+          requireApproval:
+            - create_firewall_policy
+            - update_firewall_policy
+            - delete_firewall_policy
+            - create_address_object
+            - create_service_object
+            - create_static_route
+            - update_static_route
+            - delete_static_route
+            - create_virtual_ip
+            - update_virtual_ip
+            - delete_virtual_ip

@@ -1,35 +1,36 @@
-# FortiGate Wrapper API Deployment
-# FastAPI service that proxies FortiGate REST API calls with MCP endpoint for kagent.
+# FortiGate MCP Server Deployment
+# Community FortiGate MCP server (github.com/alpadalar/fortigate-mcp-server)
+# with entrypoint that generates config.json from environment variables.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: fortigate-wrapper
+  name: fortigate-mcp-server
   namespace: kagent
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fortigate-wrapper
+  name: fortigate-mcp-server
   namespace: kagent
   labels:
-    app: fortigate-wrapper
+    app: fortigate-mcp-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: fortigate-wrapper
+      app: fortigate-mcp-server
   template:
     metadata:
       labels:
-        app: fortigate-wrapper
+        app: fortigate-mcp-server
     spec:
-      serviceAccountName: fortigate-wrapper
+      serviceAccountName: fortigate-mcp-server
       containers:
-        - name: fortigate-wrapper
-          image: docker.io/sebbycorp/fortigate-wrapper:latest
+        - name: fortigate-mcp
+          image: docker.io/sebbycorp/fortigate-mcp-server:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8080
+            - containerPort: 8814
           env:
             - name: FORTI_HOST
               valueFrom:
@@ -41,21 +42,21 @@ spec:
                 secretKeyRef:
                   name: fortigate-credentials
                   key: FORTI_TOKEN
-            - name: FORTI_VERIFY_SSL
-              value: "false"
             - name: FORTI_VDOM
               value: "root"
+            - name: FORTI_PORT
+              value: "443"
+            - name: LOG_LEVEL
+              value: "INFO"
           livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 5
+            tcpSocket:
+              port: 8814
+            initialDelaySeconds: 10
             periodSeconds: 30
           readinessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 3
+            tcpSocket:
+              port: 8814
+            initialDelaySeconds: 5
             periodSeconds: 10
           resources:
             requests:
@@ -68,18 +69,18 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: fortigate-wrapper
+  name: fortigate-mcp-server
   namespace: kagent
   labels:
-    app: fortigate-wrapper
+    app: fortigate-mcp-server
 spec:
   ports:
-    - port: 8080
-      targetPort: 8080
+    - port: 8814
+      targetPort: 8814
       protocol: TCP
       name: http
   selector:
-    app: fortigate-wrapper
+    app: fortigate-mcp-server
   type: ClusterIP
 ---
 # RemoteMCPServer: kagent discovers FortiGate tools via this MCP endpoint
@@ -89,8 +90,8 @@ metadata:
   name: fortigate-mcp
   namespace: kagent
 spec:
-  description: "FortiGate firewall API — policies, NAT, address objects, services, interfaces, and system status"
-  url: "http://fortigate-wrapper.kagent:8080/mcp/mcp"
+  description: "FortiGate firewall MCP server — policies, NAT, VIPs, address objects, services, interfaces, routing, and system status"
+  url: "http://fortigate-mcp-server.kagent:8814/fortigate-mcp/mcp"
   timeout: "30s"
   sseReadTimeout: "5m0s"
 ---
@@ -98,12 +99,12 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: fortigate-wrapper-policy
+  name: fortigate-mcp-server-policy
   namespace: kagent
 spec:
   podSelector:
     matchLabels:
-      app: fortigate-wrapper
+      app: fortigate-mcp-server
   policyTypes:
     - Ingress
     - Egress
@@ -114,7 +115,7 @@ spec:
               kubernetes.io/metadata.name: kagent
       ports:
         - protocol: TCP
-          port: 8080
+          port: 8814
   egress:
     # Allow outbound to FortiGate management network
     - to:
