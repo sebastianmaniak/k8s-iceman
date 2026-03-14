@@ -101,7 +101,7 @@ metadata:
   namespace: kagent
 spec:
   description: "F5 BIG-IP automation API (bigip) — pools, virtual servers, nodes, monitors, certificates, and system operations"
-  url: "http://f5-wrapper-bigip.kagent:8080/mcp"
+  url: "http://f5-wrapper-bigip.kagent:8080/mcp/mcp"
   timeout: "30s"
   sseReadTimeout: "5m0s"
 ---
