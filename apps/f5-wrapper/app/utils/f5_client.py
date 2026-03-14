@@ -1,13 +1,25 @@
-from fastapi import Request
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import httpx
+
+if TYPE_CHECKING:
+    from fastapi import Request
+    from app.auth import F5TokenManager
 
 
 class F5Client:
     """Reusable client that wraps iControl REST calls."""
 
-    def __init__(self, request: Request):
-        self.tm = request.app.state.token_manager
-        self.base = request.app.state.token_manager.host
+    def __init__(self, source: Request | F5TokenManager):
+        from app.auth import F5TokenManager as _TM
+
+        if isinstance(source, _TM):
+            self.tm = source
+        else:
+            self.tm = source.app.state.token_manager
+        self.base = self.tm.host
 
     async def get(self, path: str, params: dict = None) -> dict:
         headers = await self.tm.get_headers()
