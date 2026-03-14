@@ -1,15 +1,17 @@
 """Telegram bot that forwards messages to a kagent A2A agent."""
 
 import asyncio
+import json
 import logging
 import os
 import uuid
 from pathlib import Path
 
 import httpx
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
     filters,
@@ -24,33 +26,21 @@ KAGENT_A2A_URL = os.environ["KAGENT_A2A_URL"]
 
 HEALTH_FILE = Path("/tmp/bot-healthy")
 
+# Per-user session tracking for conversation continuity
+user_sessions: dict[int, str] = {}
 
-async def send_a2a_task(message_text: str, session_id: str) -> str:
-    """Send a message to the kagent A2A endpoint and return the response."""
-    task_id = str(uuid.uuid4())
-    payload = {
-        "jsonrpc": "2.0",
-        "id": task_id,
-        "method": "message/send",
-        "params": {
-            "id": task_id,
-            "message": {
-                "role": "user",
-                "parts": [{"kind": "text", "text": message_text}],
-            },
-        },
-    }
+# Pending approval tasks: callback_id -> {task_id, session_id, user_id}
+pending_approvals: dict[str, dict] = {}
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            KAGENT_A2A_URL,
-            json=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        resp.raise_for_status()
-        data = resp.json()
 
-    result = data.get("result", {})
+def get_session(user_id: int) -> str:
+    if user_id not in user_sessions:
+        user_sessions[user_id] = str(uuid.uuid4())
+    return user_sessions[user_id]
+
+
+def _extract_text(result: dict) -> str | None:
+    """Extract text from an A2A task result (artifacts or status message)."""
     artifacts = result.get("artifacts", [])
     if artifacts:
         parts = artifacts[-1].get("parts", [])
@@ -65,17 +55,60 @@ async def send_a2a_task(message_text: str, session_id: str) -> str:
         if texts:
             return "\n".join(texts)
 
-    return "Agent returned no text response."
+    return None
 
 
-# Per-user session tracking for conversation continuity
-user_sessions: dict[int, str] = {}
+async def _send_a2a_request(
+    task_id: str,
+    message_text: str,
+    session_id: str,
+    context_id: str | None = None,
+) -> dict:
+    """Send a message to the kagent A2A endpoint and return the raw result."""
+    message = {
+        "role": "user",
+        "parts": [{"kind": "text", "text": message_text}],
+    }
+    # Include contextId and taskId in the message when replying to an existing task
+    if context_id:
+        message["contextId"] = context_id
+        message["taskId"] = task_id
+
+    payload = {
+        "jsonrpc": "2.0",
+        "id": task_id,
+        "method": "message/send",
+        "params": {
+            "id": task_id,
+            "sessionId": session_id,
+            "message": message,
+        },
+    }
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.post(
+            KAGENT_A2A_URL,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+    logger.debug("A2A response: %s", json.dumps(data, indent=2))
+    return data.get("result", {})
 
 
-def get_session(user_id: int) -> str:
-    if user_id not in user_sessions:
-        user_sessions[user_id] = str(uuid.uuid4())
-    return user_sessions[user_id]
+async def send_a2a_task(message_text: str, session_id: str) -> dict:
+    """Send a new task to the kagent A2A endpoint."""
+    task_id = str(uuid.uuid4())
+    return await _send_a2a_request(task_id, message_text, session_id)
+
+
+async def send_a2a_reply(
+    task_id: str, message_text: str, session_id: str, context_id: str | None = None
+) -> dict:
+    """Send a reply to an existing task (e.g. for HITL approval)."""
+    return await _send_a2a_request(task_id, message_text, session_id, context_id)
 
 
 async def start_command(update: Update, _) -> None:
@@ -109,6 +142,16 @@ async def status_command(update: Update, _) -> None:
         await update.message.reply_text(f"Cannot reach agent controller: {e}")
 
 
+async def _send_response(thinking_msg, update: Update, text: str) -> None:
+    """Send a (possibly long) text response, chunked for Telegram's 4096 char limit."""
+    for i in range(0, len(text), 4000):
+        chunk = text[i : i + 4000]
+        if i == 0:
+            await thinking_msg.edit_text(chunk)
+        else:
+            await update.message.reply_text(chunk)
+
+
 async def handle_message(update: Update, _) -> None:
     """Forward user message to kagent A2A and reply with the response."""
     if not update.message or not update.message.text:
@@ -122,17 +165,117 @@ async def handle_message(update: Update, _) -> None:
     thinking_msg = await update.message.reply_text("Thinking...")
 
     try:
-        response = await send_a2a_task(user_text, session_id)
-        # Telegram has a 4096 char limit per message
-        for i in range(0, len(response), 4000):
-            chunk = response[i : i + 4000]
-            if i == 0:
-                await thinking_msg.edit_text(chunk)
-            else:
-                await update.message.reply_text(chunk)
+        result = await send_a2a_task(user_text, session_id)
+        status = result.get("status", {})
+        state = status.get("state", "")
+        task_id = result.get("id", "")
+        context_id = result.get("contextId", "")
+
+        if state == "input-required":
+            # Agent needs human approval (HITL) — show Approve/Reject buttons
+            description = _extract_text(result) or "The agent wants to perform an action that requires your approval."
+            callback_id = str(uuid.uuid4())[:8]
+            pending_approvals[callback_id] = {
+                "task_id": task_id,
+                "context_id": context_id,
+                "session_id": session_id,
+                "user_id": user_id,
+            }
+
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("Approve", callback_data=f"approve:{callback_id}"),
+                    InlineKeyboardButton("Reject", callback_data=f"reject:{callback_id}"),
+                ]
+            ])
+
+            approval_text = f"Approval required:\n\n{description}"
+            # Truncate if too long for Telegram
+            if len(approval_text) > 4000:
+                approval_text = approval_text[:3997] + "..."
+            await thinking_msg.edit_text(approval_text, reply_markup=keyboard)
+        else:
+            text = _extract_text(result) or "Agent returned no text response."
+            await _send_response(thinking_msg, update, text)
+
     except Exception as e:
         logger.exception("A2A request failed")
         await thinking_msg.edit_text(f"Error contacting agent: {e}")
+
+
+async def handle_approval_callback(update: Update, _) -> None:
+    """Handle Approve/Reject button presses for HITL."""
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+    if ":" not in data:
+        return
+
+    action, callback_id = data.split(":", 1)
+    approval = pending_approvals.pop(callback_id, None)
+    if not approval:
+        await query.edit_message_text("This approval has expired or was already handled.")
+        return
+
+    if update.effective_user.id != approval["user_id"]:
+        # Put it back — wrong user
+        pending_approvals[callback_id] = approval
+        await query.answer("Only the original requester can approve or reject.", show_alert=True)
+        return
+
+    task_id = approval["task_id"]
+    context_id = approval.get("context_id", "")
+    session_id = approval["session_id"]
+
+    if action == "approve":
+        await query.edit_message_text("Approved. Processing...")
+        reply_text = "approved"
+    else:
+        await query.edit_message_text("Rejected.")
+        reply_text = "rejected"
+
+    try:
+        result = await send_a2a_reply(task_id, reply_text, session_id, context_id)
+        status = result.get("status", {})
+        state = status.get("state", "")
+
+        if state == "input-required":
+            # Agent needs another round of approval
+            description = _extract_text(result) or "The agent wants to perform another action that requires your approval."
+            new_callback_id = str(uuid.uuid4())[:8]
+            pending_approvals[new_callback_id] = {
+                "task_id": result.get("id", task_id),
+                "context_id": result.get("contextId", context_id),
+                "session_id": session_id,
+                "user_id": approval["user_id"],
+            }
+
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("Approve", callback_data=f"approve:{new_callback_id}"),
+                    InlineKeyboardButton("Reject", callback_data=f"reject:{new_callback_id}"),
+                ]
+            ])
+
+            approval_text = f"Approval required:\n\n{description}"
+            if len(approval_text) > 4000:
+                approval_text = approval_text[:3997] + "..."
+            await query.message.reply_text(approval_text, reply_markup=keyboard)
+        else:
+            text = _extract_text(result)
+            if text:
+                # Send final response in chunks if needed
+                for i in range(0, len(text), 4000):
+                    await query.message.reply_text(text[i : i + 4000])
+            elif action == "reject":
+                pass  # Already showed "Rejected." above
+            else:
+                await query.message.reply_text("Action completed.")
+
+    except Exception as e:
+        logger.exception("A2A approval reply failed")
+        await query.message.reply_text(f"Error sending approval: {e}")
 
 
 def main() -> None:
@@ -143,6 +286,7 @@ def main() -> None:
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("new", new_command))
     app.add_handler(CommandHandler("status", status_command))
+    app.add_handler(CallbackQueryHandler(handle_approval_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Write health file for k8s probes
