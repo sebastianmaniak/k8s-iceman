@@ -52,75 +52,102 @@ def _get_status_parts(result: dict) -> list[dict]:
     return result.get("status", {}).get("message", {}).get("parts", [])
 
 
-def _is_tool_approval(data: dict) -> bool:
-    """Check if a DataPart represents a tool approval request.
+def _parse_adk_confirmation(data: dict) -> dict | None:
+    """Parse an adk_request_confirmation DataPart into a structured dict.
 
-    Handles both formats:
-      - kagent/ADK: {name: "adk_request_confirmation", args: {originalFunctionCall: ...}}
-      - Generic A2A: {toolName: "...", action: "requestApproval"}
+    Returns None if the data is not an ADK confirmation.
+    Returns: {type: "approval"|"ask_user", tool_name, tool_args, hint, questions}
     """
-    if data.get("name") == "adk_request_confirmation":
-        return True
-    if data.get("toolName"):
-        return True
-    return False
-
-
-def _format_tool_approval(data: dict) -> str:
-    """Format a tool approval DataPart into a user-friendly message."""
-    # kagent/ADK format
     if data.get("name") == "adk_request_confirmation":
         args = data.get("args", {})
         func_call = args.get("originalFunctionCall", {})
-        tool_name = func_call.get("name", "unknown tool")
+        tool_name = func_call.get("name", "")
         tool_args = func_call.get("args", {})
         hint = args.get("toolConfirmation", {}).get("hint", "")
 
-        # Build a clean, readable message
-        lines = [f"The agent wants to run: {tool_name}"]
-        if hint:
-            lines.append(f"\n{hint}")
+        if tool_name == "ask_user":
+            # ask_user tool — extract questions from args
+            questions = tool_args.get("questions", [])
+            if isinstance(questions, str):
+                questions = [{"question": questions}]
+            return {"type": "ask_user", "tool_name": tool_name, "questions": questions, "hint": hint}
 
-        # Show the parameters in a readable way
-        if tool_args:
-            lines.append("\nDetails:")
-            for key, value in tool_args.items():
-                val_str = str(value)
-                # Format YAML content nicely
-                if "\n" in val_str:
-                    lines.append(f"```\n{val_str}```")
-                else:
-                    lines.append(f"  {key}: {val_str}")
-
-        return "\n".join(lines)
+        return {"type": "approval", "tool_name": tool_name, "tool_args": tool_args, "hint": hint}
 
     # Generic A2A format
-    tool_name = data.get("toolName", "unknown tool")
-    params = data.get("parameters", {})
+    if data.get("toolName"):
+        return {
+            "type": "approval",
+            "tool_name": data["toolName"],
+            "tool_args": data.get("parameters", {}),
+            "hint": "",
+        }
+
+    return None
+
+
+def _classify_input_required(result: dict) -> tuple[str, dict | None]:
+    """Classify an input-required response.
+
+    Returns (kind, parsed) where kind is 'approval', 'ask_user', or 'question'.
+    """
+    for p in _get_status_parts(result):
+        if p.get("kind") != "data":
+            continue
+        parsed = _parse_adk_confirmation(p.get("data", {}))
+        if parsed:
+            return parsed["type"], parsed
+    return "question", None
+
+
+def _format_approval_text(parsed: dict) -> str:
+    """Build a user-friendly approval message from parsed ADK confirmation."""
+    tool_name = parsed.get("tool_name", "unknown tool")
+    tool_args = parsed.get("tool_args", {})
+    hint = parsed.get("hint", "")
+
     lines = [f"The agent wants to run: {tool_name}"]
-    if params:
-        lines.append("\nDetails:")
-        for k, v in params.items():
-            lines.append(f"  {k}: {v}")
+    if hint:
+        lines.append(hint)
+
+    if tool_args:
+        for key, value in tool_args.items():
+            val_str = str(value)
+            if "\n" in val_str:
+                lines.append(f"\n```\n{val_str}```")
+            else:
+                lines.append(f"  {key}: {val_str}")
+
     return "\n".join(lines)
 
 
-def _classify_input_required(result: dict) -> str:
-    """Classify an input-required response as 'approval' or 'question'."""
-    for p in _get_status_parts(result):
-        if p.get("kind") == "data" and _is_tool_approval(p.get("data", {})):
-            return "approval"
-    return "question"
+def _format_ask_user(parsed: dict) -> tuple[str, list[str]]:
+    """Format an ask_user request into a question string and list of choices.
 
+    Returns (question_text, choices).
+    """
+    questions = parsed.get("questions", [])
+    if not questions:
+        return "The agent is asking for input.", []
 
-def _format_approval_text(result: dict) -> str:
-    """Build a user-friendly approval message from the A2A result."""
-    for p in _get_status_parts(result):
-        if p.get("kind") == "data" and _is_tool_approval(p.get("data", {})):
-            return _format_tool_approval(p["data"])
+    # Collect all question texts and choices
+    q_texts = []
+    all_choices = []
+    for q in questions:
+        if isinstance(q, dict):
+            q_text = q.get("question", "")
+            choices = q.get("choices", [])
+        else:
+            q_text = str(q)
+            choices = []
 
-    # Fallback: try to extract any text
-    return _extract_text(result) or "The agent wants to perform an action that requires your approval."
+        if q_text:
+            q_texts.append(q_text)
+        if choices:
+            all_choices.extend([str(c) for c in choices])
+
+    text = "\n\n".join(q_texts) if q_texts else "The agent is asking for input."
+    return text, all_choices
 
 
 def _extract_text(result: dict) -> str | None:
@@ -142,17 +169,6 @@ def _extract_text(result: dict) -> str | None:
     return None
 
 
-def _extract_choices(result: dict) -> list[str]:
-    """Extract choice options from an ask_user DataPart, if present."""
-    for p in _get_status_parts(result):
-        if p.get("kind") != "data":
-            continue
-        data = p.get("data", {})
-        for key in ("choices", "options", "items"):
-            choices = data.get(key, [])
-            if choices and isinstance(choices, list):
-                return [str(c) for c in choices]
-    return []
 
 
 # ---------------------------------------------------------------------------
@@ -281,18 +297,20 @@ async def _handle_input_required(
     """Handle an input-required A2A result — show approval buttons or a question."""
     task_id = result.get("id", "")
     context_id = result.get("contextId", "")
-    kind = _classify_input_required(result)
+    kind, parsed = _classify_input_required(result)
+
+    task_info = {
+        "task_id": task_id,
+        "context_id": context_id,
+        "session_id": session_id,
+        "user_id": user_id,
+    }
 
     if kind == "approval":
         # Tool approval — show a clean description with Approve / Reject buttons
-        description = _format_approval_text(result)
+        description = _format_approval_text(parsed)
         callback_id = str(uuid.uuid4())[:8]
-        pending_approvals[callback_id] = {
-            "task_id": task_id,
-            "context_id": context_id,
-            "session_id": session_id,
-            "user_id": user_id,
-        }
+        pending_approvals[callback_id] = task_info
 
         keyboard = InlineKeyboardMarkup([
             [
@@ -304,22 +322,15 @@ async def _handle_input_required(
         text = description
         if len(text) > 4000:
             text = text[:3997] + "..."
-
         await _edit_or_reply(reply_target, text, reply_markup=keyboard)
 
-    else:
-        # ask_user question — check for choices or fall back to free-text
-        description = _extract_text(result) or "The agent is asking for input."
-        choices = _extract_choices(result)
+    elif kind == "ask_user" and parsed:
+        # ask_user tool — show question with choices or free-text prompt
+        question_text, choices = _format_ask_user(parsed)
 
         if choices:
             callback_id = str(uuid.uuid4())[:8]
-            pending_approvals[callback_id] = {
-                "task_id": task_id,
-                "context_id": context_id,
-                "session_id": session_id,
-                "user_id": user_id,
-            }
+            pending_approvals[callback_id] = task_info
 
             buttons = [
                 [InlineKeyboardButton(c, callback_data=f"choice:{callback_id}:{c[:40]}")]
@@ -327,23 +338,28 @@ async def _handle_input_required(
             ]
             keyboard = InlineKeyboardMarkup(buttons)
 
-            text = description
+            text = question_text
             if len(text) > 4000:
                 text = text[:3997] + "..."
             await _edit_or_reply(reply_target, text, reply_markup=keyboard)
-
         else:
-            # Free-text — store pending input and wait for user's next message
-            pending_input[user_id] = {
-                "task_id": task_id,
-                "context_id": context_id,
-                "session_id": session_id,
-            }
+            # Free-text — wait for user's next message
+            pending_input[user_id] = task_info
 
-            prompt = f"{description}\n\n(Reply with your answer)"
+            prompt = f"{question_text}\n\n(Type your answer below)"
             if len(prompt) > 4000:
                 prompt = prompt[:3997] + "..."
             await _edit_or_reply(reply_target, prompt)
+
+    else:
+        # Generic question fallback
+        description = _extract_text(result) or "The agent is asking for input."
+        pending_input[user_id] = task_info
+
+        prompt = f"{description}\n\n(Type your answer below)"
+        if len(prompt) > 4000:
+            prompt = prompt[:3997] + "..."
+        await _edit_or_reply(reply_target, prompt)
 
 
 async def _handle_a2a_result(
