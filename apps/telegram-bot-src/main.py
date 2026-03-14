@@ -39,21 +39,43 @@ def get_session(user_id: int) -> str:
     return user_sessions[user_id]
 
 
+def _format_parts(parts: list[dict]) -> str | None:
+    """Extract readable text from A2A message parts (text and data kinds)."""
+    texts = []
+    for p in parts:
+        kind = p.get("kind", "")
+        if kind == "text" and p.get("text"):
+            texts.append(p["text"])
+        elif kind == "data" and p.get("data"):
+            # Structured data part (e.g. tool approval request)
+            data = p["data"]
+            tool_name = data.get("toolName", "")
+            params = data.get("parameters", {})
+            if tool_name:
+                summary = f"Tool: {tool_name}"
+                if params:
+                    param_lines = [f"  {k}: {v}" for k, v in params.items()]
+                    summary += "\nParameters:\n" + "\n".join(param_lines)
+                texts.append(summary)
+            else:
+                texts.append(json.dumps(data, indent=2))
+    return "\n".join(texts) if texts else None
+
+
 def _extract_text(result: dict) -> str | None:
     """Extract text from an A2A task result (artifacts or status message)."""
     artifacts = result.get("artifacts", [])
     if artifacts:
         parts = artifacts[-1].get("parts", [])
-        texts = [p.get("text", "") for p in parts if p.get("kind") == "text"]
-        if texts:
-            return "\n".join(texts)
+        text = _format_parts(parts)
+        if text:
+            return text
 
     status = result.get("status", {})
     if status.get("message", {}).get("parts"):
-        parts = status["message"]["parts"]
-        texts = [p.get("text", "") for p in parts if p.get("kind") == "text"]
-        if texts:
-            return "\n".join(texts)
+        text = _format_parts(status["message"]["parts"])
+        if text:
+            return text
 
     return None
 
