@@ -10,7 +10,7 @@ from mcp.server.fastmcp import FastMCP
 from app.config import settings
 from app.utils.f5_client import F5Client
 
-mcp = FastMCP("f5-wrapper")
+mcp = FastMCP("f5-wrapper", host="0.0.0.0")
 
 # The token manager is set at startup by main.py
 _token_manager = None
