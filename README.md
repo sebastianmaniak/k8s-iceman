@@ -104,7 +104,7 @@ k8s-iceman/
 | HashiCorp Vault | 0.32.0 (app: 1.21.2) | helm.releases.hashicorp.com |
 | External Secrets Operator | 2.0.1 | charts.external-secrets.io |
 | Istio (ambient) | 1.29.0 | istio-release.storage.googleapis.com/charts |
-| kagent | v0.8.0-beta1 | ghcr.io/kagent-dev/kagent/helm |
+| kagent | v0.8.0-beta6 | ghcr.io/kagent-dev/kagent/helm |
 | Agentgateway | v2.2.1 | ghcr.io/kgateway-dev/charts |
 | Gateway API CRDs | v1.4.0 | kubernetes-sigs/gateway-api |
 
