@@ -6,3 +6,9 @@
 controller:
   image:
     pullPolicy: IfNotPresent
+
+
+gatewayClassParametersRefs:
+  agentgateway:
+    name: langfuse-tracing
+    namespace: agentgateway-system

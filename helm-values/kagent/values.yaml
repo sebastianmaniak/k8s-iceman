@@ -67,3 +67,24 @@ kagent-tools:
   # Keep the Service name stable (the chart's RemoteMCPServer URL is hard-coded
   # to http://kagent-tools.<ns>:8084/mcp in 0.8.0-beta1)
   fullnameOverride: kagent-tools
+
+
+# ==============================================================================
+# OBSERVABILITY
+# ==============================================================================
+otel:
+  tracing:
+    enabled: true
+    exporter:
+      otlp:
+        endpoint: "http://otel-collector.kagent.svc.cluster.local:4317"
+        protocol: "grpc"
+        timeout: 15
+        insecure: true
+  logging:
+    enabled: false
+    exporter:
+      otlp:
+        endpoint: ""
+        timeout: 15
+        insecure: true

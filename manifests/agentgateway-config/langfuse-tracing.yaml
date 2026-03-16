@@ -1,0 +1,20 @@
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayParameters
+metadata:
+  name: langfuse-tracing
+  namespace: agentgateway-system
+spec:
+  rawConfig:
+    config:
+      tracing:
+        otlpEndpoint: grpc://otel-collector.kagent.svc.cluster.local:4317
+        otlpProtocol: grpc
+        randomSampling: true
+        fields:
+          add:
+            span.name: '"agentgateway.request"'
+            gen_ai.system: 'llm.provider'
+            gen_ai.prompt: 'flattenRecursive(llm.prompt)'
+            gen_ai.completion: 'flattenRecursive(llm.completion.map(c, {"role":"assistant", "content": c}))'
+            gen_ai.usage.completion_tokens: 'llm.outputTokens'
+            gen_ai.usage.prompt_tokens: 'llm.inputTokens'

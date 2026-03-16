@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-collector
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: ghcr.io/open-telemetry/opentelemetry-helm-charts
+      chart: opentelemetry-collector
+      targetRevision: 0.126.0
+      helm:
+        releaseName: otel-collector
+        valueFiles:
+          - $values/helm-values/otel-collector/values.yaml
+    - repoURL: https://github.com/ProfessorSeb/k8s-iceman.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kagent
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
