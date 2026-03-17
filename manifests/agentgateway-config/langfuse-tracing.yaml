@@ -4,11 +4,25 @@ metadata:
   name: langfuse-tracing
   namespace: agentgateway-system
 spec:
+  env:
+    - name: OTLP_ENDPOINT
+      valueFrom:
+        secretKeyRef:
+          name: langfuse-otel
+          key: OTLP_ENDPOINT
+    - name: OTLP_PROTOCOL
+      valueFrom:
+        secretKeyRef:
+          name: langfuse-otel
+          key: OTLP_PROTOCOL
+    - name: OTLP_HEADERS
+      valueFrom:
+        secretKeyRef:
+          name: langfuse-otel
+          key: OTLP_HEADERS
   rawConfig:
     config:
       tracing:
-        otlpEndpoint: grpc://otel-collector.kagent.svc.cluster.local:4317
-        otlpProtocol: grpc
         randomSampling: true
         fields:
           add:
