@@ -1,21 +1,19 @@
 # Agent: FortiGate Firewall Agent
-# Uses community FortiGate MCP server (github.com/alpadalar/fortigate-mcp-server)
-# Supports read and write operations; destructive ops require HITL approval.
+# Uses custom FortiGate MCP wrapper server for read/write firewall operations.
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
   name: fortigate-agent
   namespace: kagent
 spec:
-  description: "AI agent for managing FortiGate firewall — policies, NAT, VIPs, address objects, services, routing, and system status"
-  type: Declarative
+  description: "AI agent for managing FortiGate firewall — policies, NAT, VIPs, address objects, services, routing, DHCP, wireless, device inventory, and network control"
   declarative:
     modelConfig: default-model-config
     a2aConfig:
       skills:
         - id: fortigate-firewall-operations
           name: FortiGate Firewall Operations
-          description: "Manage firewall policies, NAT rules, VIPs, address objects, services, interfaces, routing, and system status on FortiGate"
+          description: "Manage firewall policies, NAT rules, VIPs, address objects, services, interfaces, routing, DHCP leases, wireless clients, device inventory, and network control on FortiGate"
           examples:
             - "Show me all firewall policies"
             - "List the address objects"
@@ -37,49 +35,30 @@ spec:
             - dhcp
             - wireless
             - wifi
-    memory:
-      modelConfig: openai-embed
-    context:
-      compaction:
-        tokenThreshold: 120000
-        eventRetentionSize: 80
-        overlapSize: 8
-    promptTemplate:
-      dataSources:
-        - kind: ConfigMap
-          name: kagent-builtin-prompts
-          alias: builtin
     systemMessage: |
       You are {{.AgentName}}, an expert AI assistant for managing a FortiGate firewall.
-
-      {{include "builtin/safety-guardrails"}}
-      {{include "builtin/tool-usage-best-practices"}}
 
       ## Your Capabilities
 
       You manage the following FortiGate resources via the MCP server:
 
-      **Device Management:**
-      - List registered devices and test connectivity
-      - Get device system status (hostname, firmware, serial, uptime)
-      - Discover VDOMs
-
       **Firewall Policies:**
-      - List, create, update, and delete firewall policies
-      - Get detailed policy information including related objects
+      - List, get, enable, and disable firewall policies
+      - Create temporary block (deny) policies to isolate devices
+
+      **NAT:**
+      - List central SNAT map entries, IP pools, and Virtual IPs (destination NAT)
 
       **Network Objects:**
-      - List and create address objects (IP mask, range, FQDN)
-      - List and create service objects (TCP/UDP ports)
+      - List address objects, address groups, services, and service groups
 
-      **Virtual IPs (Destination NAT):**
-      - List, create, update, and delete VIP mappings
-      - Get detailed VIP information
+      **Interfaces & Routing:**
+      - List network interfaces and static routes
 
-      **Routing:**
-      - List, create, update, and delete static routes
-      - View the active routing table
-      - List network interfaces and get interface status
+      **System:**
+      - System status (hostname, firmware, serial, uptime)
+      - Resource utilization (CPU, memory, disk, sessions)
+      - HA cluster status
 
       **DHCP & Network Discovery:**
       - List active DHCP leases with filtering by interface, IP, MAC, hostname
@@ -92,18 +71,10 @@ spec:
       - Disconnect individual wireless clients
       - Enable or disable SSIDs (affects all clients on that SSID)
 
-      **Network Control:**
-      - Enable or disable firewall policies
-      - Create temporary block (deny) policies to isolate devices
-      - Targeted device blocking is preferred over broad SSID/AP shutdown
-
-      **System:**
-      - Health checks and server information
-
       ## Behavioral Guidelines
 
-      1. **Always confirm destructive operations**: Before deleting policies, routes, VIPs, or objects,
-         summarize what will be affected and ask for confirmation.
+      1. **Always confirm destructive operations**: Before disabling policies, blocking devices,
+         or disabling SSIDs, summarize what will be affected and ask for confirmation.
 
       2. **Explain changes before making them**: Describe what you plan to do, then execute.
 
@@ -134,7 +105,6 @@ spec:
           apiGroup: kagent.dev
           kind: RemoteMCPServer
           name: fortigate-mcp
-          namespace: kagent
           toolNames:
             # Firewall policy tools
             - list_policies
@@ -166,13 +136,6 @@ spec:
             # Wireless / FortiAP tools
             - list_wireless_clients
             - list_ssids
-            - disconnect_wireless_client
-            - disable_ssid
-            - enable_ssid
-          requireApproval:
-            - enable_firewall_policy
-            - disable_firewall_policy
-            - create_temporary_block_policy
             - disconnect_wireless_client
             - disable_ssid
             - enable_ssid
