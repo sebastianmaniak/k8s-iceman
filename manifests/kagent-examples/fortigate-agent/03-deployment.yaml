@@ -49,14 +49,12 @@ spec:
             - name: LOG_LEVEL
               value: "INFO"
           livenessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 30
           readinessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -93,7 +91,7 @@ metadata:
   namespace: kagent
 spec:
   description: "FortiGate firewall MCP server — policies, NAT, VIPs, address objects, services, interfaces, routing, and system status"
-  url: "http://fortigate-mcp-server.kagent:8080/mcp/mcp/"
+  url: "http://fortigate-mcp-server.kagent:8080/mcp"
   timeout: "30s"
   sseReadTimeout: "5m0s"
 ---

@@ -8,11 +8,9 @@ via a FastAPI REST + MCP server for kagent tool discovery.
 import json
 import logging
 import os
-from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
-from fastapi import FastAPI
 from mcp.server.fastmcp import FastMCP
 
 logger = logging.getLogger("fortigate-wrapper")
@@ -20,7 +18,9 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
 
 # --- FortiGate client ---
 
-FORTI_HOST = os.environ["FORTI_HOST"]  # e.g. https://10.0.0.1:443
+_raw_host = os.environ["FORTI_HOST"]  # e.g. https://10.0.0.1:443 or just 10.0.0.1
+FORTI_PORT = os.getenv("FORTI_PORT", "443")
+FORTI_HOST = _raw_host if _raw_host.startswith("http") else f"https://{_raw_host}:{FORTI_PORT}"
 FORTI_TOKEN = os.environ["FORTI_TOKEN"]
 VERIFY_SSL = os.getenv("FORTI_VERIFY_SSL", "false").lower() == "true"
 VDOM = os.getenv("FORTI_VDOM", "root")
@@ -73,7 +73,7 @@ async def _delete(path: str, params: dict | None = None) -> Any:
 
 # --- MCP tool server ---
 
-mcp = FastMCP("fortigate-mcp")
+mcp = FastMCP("fortigate-mcp", host="0.0.0.0", port=8080)
 
 
 # ── Firewall Policies ──
@@ -620,21 +620,8 @@ async def enable_ssid(ssid_name: str) -> str:
     return json.dumps({"result": f"SSID '{ssid_name}' enabled", "response": data}, indent=2)
 
 
-# --- FastAPI app ---
+# --- Entry point ---
 
-
-@asynccontextmanager
-async def lifespan(a: FastAPI):
+if __name__ == "__main__":
     logger.info("FortiGate wrapper starting — host=%s vdom=%s", FORTI_HOST, VDOM)
-    yield
-
-
-app = FastAPI(title="FortiGate Wrapper", lifespan=lifespan)
-
-# Mount MCP as ASGI sub-app at /mcp
-app.mount("/mcp", mcp.sse_app())
-
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+    mcp.run(transport="streamable-http")
