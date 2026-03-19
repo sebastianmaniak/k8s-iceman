@@ -1,6 +1,7 @@
 """FortiGate Wrapper API with MCP endpoint for kagent integration.
 
-Exposes FortiGate firewall read operations (policies, NATs, address groups)
+Exposes FortiGate firewall operations (policies, NATs, address groups,
+DHCP leases, wireless clients, device inventory, and network control)
 via a FastAPI REST + MCP server for kagent tool discovery.
 """
 
@@ -39,6 +40,33 @@ async def _get(path: str, params: dict | None = None) -> Any:
         params = params or {}
         params["vdom"] = VDOM
         r = await c.get(path, params=params)
+        r.raise_for_status()
+        return r.json()
+
+
+async def _post(path: str, payload: dict | None = None, params: dict | None = None) -> Any:
+    async with _client() as c:
+        params = params or {}
+        params["vdom"] = VDOM
+        r = await c.post(path, json=payload or {}, params=params)
+        r.raise_for_status()
+        return r.json()
+
+
+async def _put(path: str, payload: dict, params: dict | None = None) -> Any:
+    async with _client() as c:
+        params = params or {}
+        params["vdom"] = VDOM
+        r = await c.put(path, json=payload, params=params)
+        r.raise_for_status()
+        return r.json()
+
+
+async def _delete(path: str, params: dict | None = None) -> Any:
+    async with _client() as c:
+        params = params or {}
+        params["vdom"] = VDOM
+        r = await c.delete(path, params=params)
         r.raise_for_status()
         return r.json()
 
@@ -331,6 +359,265 @@ async def list_static_routes() -> str:
             }
         )
     return json.dumps(rows, indent=2)
+
+
+# ── DHCP Leases ──
+
+
+@mcp.tool()
+async def list_dhcp_leases(
+    interface: str = "",
+    ip: str = "",
+    mac: str = "",
+    hostname: str = "",
+) -> str:
+    """List active DHCP leases from all DHCP servers on the FortiGate.
+    Optional filters: interface, ip, mac, hostname (case-insensitive substring match).
+    Returns IP, MAC, hostname, interface, lease expiry, and vendor hint for each lease."""
+    data = await _get("/api/v2/monitor/system/dhcp")
+    leases: list[dict] = []
+    for entry in data.get("results", []):
+        for lease in entry.get("leases", []):
+            leases.append(
+                {
+                    "ip": lease.get("ip", ""),
+                    "mac": lease.get("mac", ""),
+                    "hostname": lease.get("hostname", ""),
+                    "interface": entry.get("interface", lease.get("interface", "")),
+                    "expire_time": lease.get("expire_time", ""),
+                    "type": lease.get("type", ""),
+                    "server_mkey": entry.get("server_mkey", ""),
+                    "vci": lease.get("vci", ""),
+                }
+            )
+    # Apply filters
+    if interface:
+        leases = [l for l in leases if interface.lower() in l["interface"].lower()]
+    if ip:
+        leases = [l for l in leases if ip in l["ip"]]
+    if mac:
+        leases = [l for l in leases if mac.lower() in l["mac"].lower()]
+    if hostname:
+        leases = [l for l in leases if hostname.lower() in l["hostname"].lower()]
+    return json.dumps(leases, indent=2)
+
+
+# ── Wireless / FortiAP Clients ──
+
+
+@mcp.tool()
+async def list_wireless_clients(
+    ssid: str = "",
+    ap_name: str = "",
+    band: str = "",
+) -> str:
+    """List all connected wireless/FortiAP clients.
+    Optional filters: ssid, ap_name, band (e.g. '2.4GHz', '5GHz').
+    Returns client MAC, IP, hostname, SSID, AP name, signal/RSSI,
+    connection duration, and OS/vendor fingerprint if available."""
+    data = await _get("/api/v2/monitor/wifi/client")
+    clients: list[dict] = []
+    for c in data.get("results", []):
+        clients.append(
+            {
+                "mac": c.get("mac", ""),
+                "ip": c.get("ip", ""),
+                "hostname": c.get("hostname", ""),
+                "ssid": c.get("ssid", ""),
+                "ap_name": c.get("ap_name", c.get("wtp_name", "")),
+                "band": c.get("band", c.get("radio_type", "")),
+                "signal_strength": c.get("signal_strength", c.get("signal", "")),
+                "noise": c.get("noise", ""),
+                "snr": c.get("snr", ""),
+                "channel": c.get("channel", ""),
+                "bandwidth_tx": c.get("bandwidth_tx", ""),
+                "bandwidth_rx": c.get("bandwidth_rx", ""),
+                "association_time": c.get("association_time", ""),
+                "idle_time": c.get("idle_time", ""),
+                "os": c.get("os", ""),
+                "vendor": c.get("manufacturer", c.get("vendor", "")),
+                "vlan_id": c.get("vlan_id", ""),
+            }
+        )
+    # Apply filters
+    if ssid:
+        clients = [c for c in clients if ssid.lower() in c["ssid"].lower()]
+    if ap_name:
+        clients = [c for c in clients if ap_name.lower() in c["ap_name"].lower()]
+    if band:
+        clients = [c for c in clients if band.lower() in c["band"].lower()]
+    return json.dumps(clients, indent=2)
+
+
+# ── Device Inventory / Endpoint Discovery ──
+
+
+@mcp.tool()
+async def list_detected_devices(
+    device_type: str = "",
+    os: str = "",
+    vendor: str = "",
+    ip: str = "",
+    mac: str = "",
+) -> str:
+    """List all detected/discovered devices on the network (FortiGate device inventory).
+    Optional filters: device_type, os, vendor, ip, mac (case-insensitive substring).
+    Returns MAC, IP, hostname, device type, OS, vendor, interface, and last-seen timestamp."""
+    data = await _get("/api/v2/monitor/user/device/query")
+    devices: list[dict] = []
+    for d in data.get("results", []):
+        devices.append(
+            {
+                "mac": d.get("mac", ""),
+                "ip": d.get("ipv4_address", d.get("ip", "")),
+                "hostname": d.get("host", d.get("hostname", "")),
+                "device_type": d.get("type", d.get("detected_device", "")),
+                "os": d.get("os", ""),
+                "vendor": d.get("hardware_vendor", d.get("vendor", "")),
+                "interface": d.get("interface", ""),
+                "last_seen": d.get("last_seen", ""),
+                "is_online": d.get("is_online", ""),
+                "user": d.get("user", ""),
+            }
+        )
+    # Apply filters
+    if device_type:
+        devices = [d for d in devices if device_type.lower() in d["device_type"].lower()]
+    if os:
+        devices = [d for d in devices if os.lower() in d["os"].lower()]
+    if vendor:
+        devices = [d for d in devices if vendor.lower() in d["vendor"].lower()]
+    if ip:
+        devices = [d for d in devices if ip in d["ip"]]
+    if mac:
+        devices = [d for d in devices if mac.lower() in d["mac"].lower()]
+    return json.dumps(devices, indent=2)
+
+
+# ── Network Control Tools ──
+
+
+@mcp.tool()
+async def get_firewall_policy(policy_id: int) -> str:
+    """Get a single firewall policy by ID. Use this before updating or toggling a policy."""
+    data = await _get(f"/api/v2/cmdb/firewall/policy/{policy_id}")
+    results = data.get("results", [])
+    if not results:
+        return json.dumps({"error": f"Policy {policy_id} not found"})
+    return json.dumps(results[0], indent=2)
+
+
+@mcp.tool()
+async def enable_firewall_policy(policy_id: int) -> str:
+    """Enable (activate) a firewall policy by its ID. Sets the policy status to 'enable'."""
+    data = await _put(
+        f"/api/v2/cmdb/firewall/policy/{policy_id}",
+        {"status": "enable"},
+    )
+    return json.dumps({"result": "Policy enabled", "policy_id": policy_id, "response": data}, indent=2)
+
+
+@mcp.tool()
+async def disable_firewall_policy(policy_id: int) -> str:
+    """Disable (deactivate) a firewall policy by its ID. Sets the policy status to 'disable'.
+    Traffic matching this policy will no longer be processed by it."""
+    data = await _put(
+        f"/api/v2/cmdb/firewall/policy/{policy_id}",
+        {"status": "disable"},
+    )
+    return json.dumps({"result": "Policy disabled", "policy_id": policy_id, "response": data}, indent=2)
+
+
+@mcp.tool()
+async def create_temporary_block_policy(
+    name: str,
+    srcaddr: str,
+    dstaddr: str = "all",
+    srcintf: str = "any",
+    dstintf: str = "any",
+    service: str = "ALL",
+    comments: str = "",
+) -> str:
+    """Create a DENY firewall policy to temporarily block traffic.
+    Parameters:
+      - name: descriptive name for the block rule
+      - srcaddr: source address object name (must already exist, e.g. a MAC-based address)
+      - dstaddr: destination address object name (default 'all')
+      - srcintf: source interface (default 'any')
+      - dstintf: destination interface (default 'any')
+      - service: service to block (default 'ALL')
+      - comments: optional description of why this block was created
+    The policy is created enabled with action=deny and logging enabled."""
+    payload = {
+        "name": name,
+        "srcintf": [{"name": srcintf}],
+        "dstintf": [{"name": dstintf}],
+        "srcaddr": [{"name": srcaddr}],
+        "dstaddr": [{"name": dstaddr}],
+        "service": [{"name": service}],
+        "action": "deny",
+        "status": "enable",
+        "logtraffic": "all",
+        "comments": comments or f"Temporary block created by kagent: {name}",
+    }
+    data = await _post("/api/v2/cmdb/firewall/policy", payload)
+    return json.dumps({"result": "Block policy created", "name": name, "response": data}, indent=2)
+
+
+@mcp.tool()
+async def disconnect_wireless_client(mac: str) -> str:
+    """Disconnect (deauthenticate) a specific wireless client by MAC address.
+    The client will be forced to reassociate. Format: XX:XX:XX:XX:XX:XX"""
+    data = await _post(
+        "/api/v2/monitor/wifi/client/deauth",
+        {"mac": mac},
+    )
+    return json.dumps({"result": f"Client {mac} disconnected", "response": data}, indent=2)
+
+
+@mcp.tool()
+async def list_ssids() -> str:
+    """List all configured wireless SSIDs (VAPs). Shows SSID name, status,
+    security mode, VLAN, and broadcast settings."""
+    data = await _get("/api/v2/cmdb/wireless-controller/vap")
+    ssids = data.get("results", [])
+    rows = []
+    for s in ssids:
+        rows.append(
+            {
+                "name": s.get("name", ""),
+                "ssid": s.get("ssid", ""),
+                "status": s.get("status", ""),
+                "security": s.get("security", ""),
+                "vlan_id": s.get("vlanid", ""),
+                "broadcast_ssid": s.get("broadcast-ssid", ""),
+                "schedule": s.get("schedule", ""),
+                "max_clients": s.get("max-clients", ""),
+            }
+        )
+    return json.dumps(rows, indent=2)
+
+
+@mcp.tool()
+async def disable_ssid(ssid_name: str) -> str:
+    """Disable a wireless SSID (VAP) by its profile name. This affects ALL clients
+    connected to this SSID — use with caution. The SSID stops broadcasting."""
+    data = await _put(
+        f"/api/v2/cmdb/wireless-controller/vap/{ssid_name}",
+        {"status": "disable"},
+    )
+    return json.dumps({"result": f"SSID '{ssid_name}' disabled", "response": data}, indent=2)
+
+
+@mcp.tool()
+async def enable_ssid(ssid_name: str) -> str:
+    """Enable a wireless SSID (VAP) by its profile name. The SSID will resume
+    broadcasting and clients can reconnect."""
+    data = await _put(
+        f"/api/v2/cmdb/wireless-controller/vap/{ssid_name}",
+        {"status": "enable"},
+    )
+    return json.dumps({"result": f"SSID '{ssid_name}' enabled", "response": data}, indent=2)
 
 
 # --- FastAPI app ---

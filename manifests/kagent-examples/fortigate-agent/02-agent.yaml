@@ -23,11 +23,20 @@ spec:
             - "Show me the routing table"
             - "What is the device status?"
             - "List all interfaces"
+            - "Show me all DHCP leases"
+            - "What wireless clients are connected?"
+            - "List all detected devices on the network"
+            - "Block this device temporarily"
+            - "Disable the guest SSID"
+            - "Disconnect a wireless client"
           tags:
             - fortigate
             - fortinet
             - firewall
             - networking
+            - dhcp
+            - wireless
+            - wifi
     memory:
       modelConfig: openai-embed
     context:
@@ -45,11 +54,6 @@ spec:
 
       {{include "builtin/safety-guardrails"}}
       {{include "builtin/tool-usage-best-practices"}}
-
-      ## Important: Device ID
-
-      All tools require a `device_id` parameter. The configured device is called **"primary"**.
-      Always pass `device_id="primary"` when calling any tool.
 
       ## Your Capabilities
 
@@ -77,6 +81,22 @@ spec:
       - View the active routing table
       - List network interfaces and get interface status
 
+      **DHCP & Network Discovery:**
+      - List active DHCP leases with filtering by interface, IP, MAC, hostname
+      - List all detected/discovered devices on the network (device inventory)
+      - View device type, OS, vendor fingerprinting information
+
+      **Wireless / FortiAP:**
+      - List connected wireless clients with filtering by SSID, AP, band
+      - List configured SSIDs (VAPs)
+      - Disconnect individual wireless clients
+      - Enable or disable SSIDs (affects all clients on that SSID)
+
+      **Network Control:**
+      - Enable or disable firewall policies
+      - Create temporary block (deny) policies to isolate devices
+      - Targeted device blocking is preferred over broad SSID/AP shutdown
+
       **System:**
       - Health checks and server information
 
@@ -98,6 +118,15 @@ spec:
       7. **Error handling**: If the FortiGate API returns an error, explain it in plain language.
          Common: 401 = invalid token, 403 = permission denied, 404 = not found, 409 = already exists.
 
+      8. **Wireless control safety**: Prefer disconnecting individual clients over disabling an entire SSID.
+         Disabling an SSID affects ALL connected clients. Always confirm before disabling SSIDs.
+
+      9. **Device blocking**: When asked to block a device, prefer creating a targeted deny policy
+         rather than disabling infrastructure (SSIDs, APs). Explain the impact before acting.
+
+      10. **Discovery first**: When investigating network issues, start with read-only tools
+          (list_dhcp_leases, list_wireless_clients, list_detected_devices) before taking any control actions.
+
       Available tools: {{.ToolNames}}
     tools:
       - type: McpServer
@@ -107,49 +136,43 @@ spec:
           name: fortigate-mcp
           namespace: kagent
           toolNames:
-            # Device tools
-            - list_devices
-            - get_device_status
-            - test_device_connection
-            - discover_vdoms
-            # Firewall tools
-            - list_firewall_policies
-            - get_firewall_policy_detail
-            - create_firewall_policy
-            - update_firewall_policy
-            - delete_firewall_policy
-            # Network tools
-            - list_address_objects
-            - create_address_object
-            - list_service_objects
-            - create_service_object
-            # Routing tools
-            - list_static_routes
-            - create_static_route
-            - get_routing_table
+            # Firewall policy tools
+            - list_policies
+            - get_policy
+            - get_firewall_policy
+            - enable_firewall_policy
+            - disable_firewall_policy
+            - create_temporary_block_policy
+            # NAT tools
+            - list_central_snat
+            - list_ip_pools
+            - list_vips
+            # Address & service tools
+            - list_addresses
+            - list_address_groups
+            - get_address_group
+            - list_services
+            - list_service_groups
+            # Interface & routing tools
             - list_interfaces
-            - get_interface_status
-            - update_static_route
-            - delete_static_route
-            - get_static_route_detail
-            # Virtual IP tools
-            - list_virtual_ips
-            - create_virtual_ip
-            - update_virtual_ip
-            - get_virtual_ip_detail
-            - delete_virtual_ip
+            - list_static_routes
             # System tools
-            - health
-            - test_connection
+            - system_status
+            - system_resources
+            - ha_status
+            # DHCP & device discovery tools
+            - list_dhcp_leases
+            - list_detected_devices
+            # Wireless / FortiAP tools
+            - list_wireless_clients
+            - list_ssids
+            - disconnect_wireless_client
+            - disable_ssid
+            - enable_ssid
           requireApproval:
-            - create_firewall_policy
-            - update_firewall_policy
-            - delete_firewall_policy
-            - create_address_object
-            - create_service_object
-            - create_static_route
-            - update_static_route
-            - delete_static_route
-            - create_virtual_ip
-            - update_virtual_ip
-            - delete_virtual_ip
+            - enable_firewall_policy
+            - disable_firewall_policy
+            - create_temporary_block_policy
+            - disconnect_wireless_client
+            - disable_ssid
+            - enable_ssid
