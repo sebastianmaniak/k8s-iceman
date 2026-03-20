@@ -32,10 +32,11 @@ spec:
         - name: github-mcp
           image: ghcr.io/github/github-mcp-server:latest
           args:
-            - --transport
-            - streamable-http
+            - http
             - --port
             - "8080"
+            - --toolsets
+            - all
           env:
             - name: GITHUB_PERSONAL_ACCESS_TOKEN
               valueFrom:
