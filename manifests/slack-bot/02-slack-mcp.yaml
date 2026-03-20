@@ -1,0 +1,17 @@
+# MCPServer: Slack MCP — provides slack_post_message tool to agents
+# Runs zencoderai/slack-mcp via stdio transport, credentials from slack-credentials secret
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: slack-mcp
+  namespace: kagent
+spec:
+  image: zencoderai/slack-mcp:latest
+  port: 3000
+  entrypoint: node
+  args:
+    - dist/index.js
+    - --transport
+    - stdio
+  secretRef:
+    name: slack-credentials

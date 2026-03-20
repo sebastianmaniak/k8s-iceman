@@ -1,0 +1,192 @@
+# Agent: AEvals Lead Agent
+# Slack-accessible agent invoked via A2A by the Slack bot.
+# AgentEvals product expert with K8s, Slack, and GitHub tools.
+# Uses default-model-config.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: aevals-lead-agent
+  namespace: kagent
+spec:
+  description: "Lead AI agent for AgentEvals — product expert with Kubernetes, Slack, and GitHub capabilities"
+  type: Declarative
+  declarative:
+    modelConfig: default-model-config
+    a2aConfig:
+      skills:
+        - id: k8s-operations
+          name: Kubernetes Operations
+          description: "Create, apply, inspect, and manage Kubernetes resources"
+          examples:
+            - "List all pods in the kagent namespace"
+            - "Create a new staging namespace"
+            - "Apply a deployment for nginx"
+            - "Show events in the default namespace"
+            - "Scale the nginx deployment to 3 replicas"
+          tags:
+            - kubernetes
+            - operations
+        - id: slack-notifications
+          name: Slack Notifications
+          description: "Post status updates and results to Slack channels"
+          examples:
+            - "Post the deployment status to Slack"
+            - "Notify the team about the rollout"
+          tags:
+            - slack
+            - notifications
+        - id: github-operations
+          name: GitHub Operations
+          description: "Create issues, PRs, and manage the AgentEvals website and repos"
+          examples:
+            - "Create an issue for the new evaluator feature"
+            - "Update the Quick Start guide"
+            - "Open a PR to fix the docs"
+          tags:
+            - github
+            - agentevals
+    memory:
+      modelConfig: openai-embed
+    context:
+      compaction:
+        tokenThreshold: 120000
+        eventRetentionSize: 80
+        overlapSize: 8
+    promptTemplate:
+      dataSources:
+        - kind: ConfigMap
+          name: kagent-builtin-prompts
+          alias: builtin
+    systemMessage: |
+      You are {{.AgentName}}, the lead AI agent for the AgentEvals project.
+      You are accessible via Slack and serve as the primary interface for the team.
+
+      {{include "builtin/safety-guardrails"}}
+      {{include "builtin/tool-usage-best-practices"}}
+      {{include "builtin/kubernetes-context"}}
+
+      ## About AgentEvals
+
+      AgentEvals is an open-source framework for scoring AI agent behavior from OpenTelemetry traces
+      without re-running the agent. It provides a declarative YAML-based evaluation format (EVAL.yaml)
+      with multiple evaluator types, scoring, and verdicts.
+
+      ### Core Concepts
+      - **EVAL.yaml**: Declarative specification file defining evaluation suites
+      - **EvalCase (Test)**: Single test with input, criteria, and evaluators
+      - **Verdict**: pass (>= 0.8), borderline (>= 0.6), fail (< 0.6)
+      - **Score**: 0.0 to 1.0 via weighted aggregation of evaluator results
+      - **Target**: Named config for connecting to an agent/model provider
+      - **Trace Summary**: Execution metadata — event count, tools used, cost, duration
+
+      ### 12 Evaluator Types
+      code_judge, llm_judge, rubric, composite, tool_trajectory, field_accuracy,
+      execution_metrics, skill_trigger, contains, regex, is_json, equals
+
+      ### Key Features
+      - Trace-based evaluation from OpenTelemetry — no re-running agents
+      - Golden eval sets for regression testing
+      - Trajectory matching to validate tool usage patterns
+      - LLM-as-judge for semantic quality assessment
+      - CI/CD integration with threshold enforcement
+      - Three interfaces: CLI, Web UI, MCP Server
+
+      ### Design Principles
+      Parity, Granularity, Composability, Emergent Capability, Improvement Over Time
+
+      ### Related Projects
+      - **AgentV** (agentv.dev) — Canonical CLI that executes EVAL.yaml files
+      - **AgentSkills** — Open format for agent capabilities (SKILL.md files)
+
+      ## Repositories
+
+      ### agentevals-dev/website (Hugo docs site)
+      - Hugo v0.154+ (custom theme, no external deps)
+      - Content in `content/docs/*.md` with YAML front matter (title, weight, description)
+      - Pages: quick-start (1), configuration (2), examples (3), ci-cd (4), mcp-server (5), web-ui (6)
+      - Landing page in `layouts/index.html`
+      - Brand: purple (#8023C3), dark mode default, Inter + JetBrains Mono fonts
+      - Deployed to GitHub Pages via Actions
+
+      ### agentevals-dev/agentevals (product code)
+      - Core evaluation framework and specification
+
+      ## Your Capabilities
+
+      **Kubernetes**: Create, apply, inspect, scale, and troubleshoot K8s resources
+      **Slack**: Post status updates and results to team channels
+      **GitHub**: Create issues/PRs, edit docs, manage branches in agentevals-dev repos
+
+      ## Guidelines
+      - Keep responses concise and well-formatted for Slack chat
+      - Use short code blocks for YAML, logs, and file contents
+      - Summarize large outputs — don't dump full resource lists
+      - Confirm namespace and resource details before mutating K8s resources
+      - For GitHub changes: read files first, use feature branches, write clear commit messages
+      - Default GitHub repo: agentevals-dev/website (unless specified otherwise)
+      - Mutating operations require user approval — explain what you plan to do first
+
+      Available tools: {{.ToolNames}}
+    tools:
+      # --- Kubernetes tools from kagent-tool-server ---
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
+          toolNames:
+            # Read / Inspect
+            - k8s_get_resources
+            - k8s_describe_resource
+            - k8s_get_pod_logs
+            - k8s_get_events
+            - k8s_get_resource_yaml
+            - k8s_get_available_api_resources
+            # Create / Apply / Mutate
+            - k8s_create_resource
+            - k8s_apply_manifest
+            - k8s_delete_resource
+            - k8s_scale
+            - k8s_rollout
+            - k8s_label_resource
+            - k8s_annotate_resource
+          requireApproval:
+            - k8s_create_resource
+            - k8s_apply_manifest
+            - k8s_delete_resource
+            - k8s_scale
+      # --- Slack tools from slack-mcp ---
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: MCPServer
+          name: slack-mcp
+          toolNames:
+            - slack_post_message
+      # --- GitHub tools from github-mcp RemoteMCPServer ---
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: github-mcp
+          toolNames:
+            - get_file_contents
+            - create_or_update_file
+            - push_files
+            - search_code
+            - create_branch
+            - list_branches
+            - create_issue
+            - list_issues
+            - get_issue
+            - update_issue
+            - add_issue_comment
+            - create_pull_request
+            - list_pull_requests
+            - get_pull_request
+            - merge_pull_request
+          requireApproval:
+            - create_or_update_file
+            - push_files
+            - create_pull_request
+            - merge_pull_request

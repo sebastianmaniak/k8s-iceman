@@ -1,0 +1,104 @@
+# Slack Bot Deployment
+# Uses Socket Mode (no ingress needed). Connects to kagent-controller A2A endpoint.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: slack-bot
+  namespace: kagent
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slack-bot
+  namespace: kagent
+  labels:
+    app: slack-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: slack-bot
+  template:
+    metadata:
+      labels:
+        app: slack-bot
+    spec:
+      serviceAccountName: slack-bot
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: bot
+          image: docker.io/sebbycorp/kagent-slack-bot:latest
+          imagePullPolicy: Always
+          env:
+            - name: SLACK_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: slack-credentials
+                  key: SLACK_BOT_TOKEN
+            - name: SLACK_APP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: slack-credentials
+                  key: SLACK_APP_TOKEN
+            - name: SLACK_TEAM_ID
+              valueFrom:
+                secretKeyRef:
+                  name: slack-credentials
+                  key: SLACK_TEAM_ID
+            - name: SLACK_CHANNEL_IDS
+              valueFrom:
+                secretKeyRef:
+                  name: slack-credentials
+                  key: SLACK_CHANNEL_IDS
+            - name: KAGENT_BASE_URL
+              value: "http://kagent-controller.kagent.svc.cluster.local:8083"
+            - name: KAGENT_NAMESPACE
+              value: "kagent"
+            - name: KAGENT_AGENT_NAME
+              value: "aevals-lead-agent"
+            - name: LOG_LEVEL
+              value: "INFO"
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /home/kagent/.cache
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import os; assert os.path.exists('/tmp/bot-healthy')"
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import os; assert os.path.exists('/tmp/bot-healthy')"
+            initialDelaySeconds: 10
+            periodSeconds: 15
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
