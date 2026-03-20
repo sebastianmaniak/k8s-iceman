@@ -10,7 +10,7 @@ spec:
   deployment:
     image: ghcr.io/github/github-mcp-server:latest
     port: 8080
-    cmd: /github-mcp-server
+    cmd: /server/github-mcp-server
     args:
       - stdio
       - --toolsets
