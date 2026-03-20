@@ -1,95 +1,20 @@
-# GitHub MCP Server Deployment + Service + RemoteMCPServer
-# Deploys ghcr.io/github/github-mcp-server as a shared service.
-# Agents reference it via RemoteMCPServer kind.
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: github-mcp-server
-  namespace: kagent
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: github-mcp-server
-  namespace: kagent
-  labels:
-    app: github-mcp-server
-spec:
-  replicas: 1
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: github-mcp-server
-  template:
-    metadata:
-      labels:
-        app: github-mcp-server
-    spec:
-      serviceAccountName: github-mcp-server
-      containers:
-        - name: github-mcp
-          image: ghcr.io/github/github-mcp-server:latest
-          args:
-            - http
-            - --port
-            - "8080"
-            - --toolsets
-            - all
-          env:
-            - name: GITHUB_PERSONAL_ACCESS_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: github-credentials
-                  key: GITHUB_PERSONAL_ACCESS_TOKEN
-          ports:
-            - name: mcp
-              containerPort: 8080
-              protocol: TCP
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
-          livenessProbe:
-            tcpSocket:
-              port: mcp
-            initialDelaySeconds: 10
-            periodSeconds: 30
-          readinessProbe:
-            tcpSocket:
-              port: mcp
-            initialDelaySeconds: 5
-            periodSeconds: 15
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: github-mcp-server
-  namespace: kagent
-  labels:
-    app: github-mcp-server
-spec:
-  type: ClusterIP
-  selector:
-    app: github-mcp-server
-  ports:
-    - name: mcp
-      port: 8080
-      targetPort: mcp
-      protocol: TCP
----
-apiVersion: kagent.dev/v1alpha2
-kind: RemoteMCPServer
+# GitHub MCP Server — provides GitHub tools to agents via stdio transport
+# Uses kagent MCPServer CRD which handles deployment automatically
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
 metadata:
   name: github-mcp
   namespace: kagent
 spec:
-  description: "GitHub API — repository management, issues, pull requests, file operations, branches, and code search"
-  url: http://github-mcp-server.kagent:8080/mcp
-  protocol: STREAMABLE_HTTP
-  timeout: 30s
-  sseReadTimeout: 5m0s
+  transportType: stdio
+  deployment:
+    image: ghcr.io/github/github-mcp-server:latest
+    port: 8080
+    cmd: /github-mcp-server
+    args:
+      - stdio
+      - --toolsets
+      - all
+    secretRefs:
+      - name: github-credentials
+  stdioTransport: {}

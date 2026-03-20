@@ -119,11 +119,11 @@ spec:
           name: slack-mcp
           toolNames:
             - slack_post_message
-      # --- GitHub tools from github-mcp RemoteMCPServer ---
+      # --- GitHub tools from github-mcp MCPServer ---
       - type: McpServer
         mcpServer:
           apiGroup: kagent.dev
-          kind: RemoteMCPServer
+          kind: MCPServer
           name: github-mcp
           toolNames:
             - get_file_contents
