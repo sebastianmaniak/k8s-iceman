@@ -6,6 +6,7 @@ metadata:
   name: slack-mcp
   namespace: kagent
 spec:
+  transportType: stdio
   deployment:
     image: zencoderai/slack-mcp:latest
     port: 3000
