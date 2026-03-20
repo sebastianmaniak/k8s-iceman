@@ -1,20 +1,43 @@
-# GitHub MCP Server — provides GitHub tools to agents via stdio transport
-# Uses kagent MCPServer CRD which handles deployment automatically
-apiVersion: kagent.dev/v1alpha1
-kind: MCPServer
+# GitHub MCP — uses GitHub Copilot's hosted MCP endpoint
+# No pod needed, just a RemoteMCPServer pointing to api.githubcopilot.com
+# Auth via github-pat secret (Bearer token in Authorization header)
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: github-pat
+  namespace: kagent
+spec:
+  refreshInterval: "1h"
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: github-pat
+    creationPolicy: Owner
+    template:
+      data:
+        GITHUB_PERSONAL_ACCESS_TOKEN: "Bearer {{ .token }}"
+  data:
+    - secretKey: token
+      remoteRef:
+        key: github
+        property: token
+---
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
 metadata:
   name: github-mcp
   namespace: kagent
 spec:
-  transportType: stdio
-  deployment:
-    image: ghcr.io/github/github-mcp-server:latest
-    port: 8080
-    cmd: /server/github-mcp-server
-    args:
-      - stdio
-      - --toolsets
-      - all
-    secretRefs:
-      - name: github-credentials
-  stdioTransport: {}
+  description: GitHub Copilot MCP Server
+  url: https://api.githubcopilot.com/mcp/
+  protocol: STREAMABLE_HTTP
+  headersFrom:
+    - name: Authorization
+      valueFrom:
+        type: Secret
+        name: github-pat
+        key: GITHUB_PERSONAL_ACCESS_TOKEN
+  timeout: 5s
+  terminateOnClose: true
