@@ -9,12 +9,11 @@ spec:
   deployment:
     image: zencoderai/slack-mcp:latest
     port: 3000
-    cmd:
-      - node
+    cmd: node
     args:
       - dist/index.js
       - --transport
       - stdio
     secretRefs:
-      - slack-credentials
+      - name: slack-credentials
   stdioTransport: {}
