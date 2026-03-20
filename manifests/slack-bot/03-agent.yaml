@@ -119,3 +119,30 @@ spec:
           name: slack-mcp
           toolNames:
             - slack_post_message
+      # --- GitHub tools from github-mcp RemoteMCPServer ---
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: github-mcp
+          toolNames:
+            - get_file_contents
+            - create_or_update_file
+            - push_files
+            - search_code
+            - create_branch
+            - list_branches
+            - create_issue
+            - list_issues
+            - get_issue
+            - update_issue
+            - add_issue_comment
+            - create_pull_request
+            - list_pull_requests
+            - get_pull_request
+            - merge_pull_request
+          requireApproval:
+            - create_or_update_file
+            - push_files
+            - create_pull_request
+            - merge_pull_request
