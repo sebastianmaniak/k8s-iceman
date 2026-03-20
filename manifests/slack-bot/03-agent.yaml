@@ -1,31 +1,18 @@
 # Agent: AEvals Lead Agent
 # Slack-accessible agent invoked via A2A by the Slack bot.
-# AgentEvals product expert with K8s, Slack, and GitHub tools.
-# Uses default-model-config.
+# Focused on maintaining agentevals-dev/website docs with Slack and GitHub tools.
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
   name: aevals-lead-agent
   namespace: kagent
 spec:
-  description: "Lead AI agent for AgentEvals — product expert with Kubernetes, Slack, and GitHub capabilities"
+  description: "Lead AI agent for AgentEvals — maintains docs and website for agentevals-dev repos via Slack"
   type: Declarative
   declarative:
     modelConfig: default-model-config
     a2aConfig:
       skills:
-        - id: k8s-operations
-          name: Kubernetes Operations
-          description: "Create, apply, inspect, and manage Kubernetes resources"
-          examples:
-            - "List all pods in the kagent namespace"
-            - "Create a new staging namespace"
-            - "Apply a deployment for nginx"
-            - "Show events in the default namespace"
-            - "Scale the nginx deployment to 3 replicas"
-          tags:
-            - kubernetes
-            - operations
         - id: slack-notifications
           name: Slack Notifications
           description: "Post status updates and results to Slack channels"
@@ -63,7 +50,6 @@ spec:
 
       {{include "builtin/safety-guardrails"}}
       {{include "builtin/tool-usage-best-practices"}}
-      {{include "builtin/kubernetes-context"}}
 
       ## About AgentEvals
 
@@ -113,48 +99,18 @@ spec:
 
       ## Your Capabilities
 
-      **Kubernetes**: Create, apply, inspect, scale, and troubleshoot K8s resources
       **Slack**: Post status updates and results to team channels
       **GitHub**: Create issues/PRs, edit docs, manage branches in agentevals-dev repos
 
       ## Guidelines
       - Keep responses concise and well-formatted for Slack chat
       - Use short code blocks for YAML, logs, and file contents
-      - Summarize large outputs — don't dump full resource lists
-      - Confirm namespace and resource details before mutating K8s resources
       - For GitHub changes: read files first, use feature branches, write clear commit messages
       - Default GitHub repo: agentevals-dev/website (unless specified otherwise)
       - Mutating operations require user approval — explain what you plan to do first
 
       Available tools: {{.ToolNames}}
     tools:
-      # --- Kubernetes tools from kagent-tool-server ---
-      - type: McpServer
-        mcpServer:
-          apiGroup: kagent.dev
-          kind: RemoteMCPServer
-          name: kagent-tool-server
-          toolNames:
-            # Read / Inspect
-            - k8s_get_resources
-            - k8s_describe_resource
-            - k8s_get_pod_logs
-            - k8s_get_events
-            - k8s_get_resource_yaml
-            - k8s_get_available_api_resources
-            # Create / Apply / Mutate
-            - k8s_create_resource
-            - k8s_apply_manifest
-            - k8s_delete_resource
-            - k8s_scale
-            - k8s_rollout
-            - k8s_label_resource
-            - k8s_annotate_resource
-          requireApproval:
-            - k8s_create_resource
-            - k8s_apply_manifest
-            - k8s_delete_resource
-            - k8s_scale
       # --- Slack tools from slack-mcp ---
       - type: McpServer
         mcpServer:
@@ -163,30 +119,3 @@ spec:
           name: slack-mcp
           toolNames:
             - slack_post_message
-      # --- GitHub tools from github-mcp RemoteMCPServer ---
-      - type: McpServer
-        mcpServer:
-          apiGroup: kagent.dev
-          kind: RemoteMCPServer
-          name: github-mcp
-          toolNames:
-            - get_file_contents
-            - create_or_update_file
-            - push_files
-            - search_code
-            - create_branch
-            - list_branches
-            - create_issue
-            - list_issues
-            - get_issue
-            - update_issue
-            - add_issue_comment
-            - create_pull_request
-            - list_pull_requests
-            - get_pull_request
-            - merge_pull_request
-          requireApproval:
-            - create_or_update_file
-            - push_files
-            - create_pull_request
-            - merge_pull_request
