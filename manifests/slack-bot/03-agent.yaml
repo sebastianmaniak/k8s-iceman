@@ -1,13 +1,13 @@
-# Agent: AEvals Lead Agent
+# Agent: agentevals agent
 # Slack-accessible agent invoked via A2A by the Slack bot.
-# Focused on maintaining agentevals-dev/website docs with Slack and GitHub tools.
+# Focused on managing the docs page for agentevals (agentevals-dev/website).
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
-  name: aevals-lead-agent
+  name: agentevals-agent
   namespace: kagent
 spec:
-  description: "Lead AI agent for AgentEvals — maintains docs and website for agentevals-dev repos via Slack"
+  description: "agentevals docs agent — manages the documentation site for agentevals via Slack and GitHub"
   type: Declarative
   declarative:
     modelConfig: default-model-config
@@ -17,21 +17,23 @@ spec:
           name: Slack Notifications
           description: "Post status updates and results to Slack channels"
           examples:
-            - "Post the deployment status to Slack"
-            - "Notify the team about the rollout"
+            - "Post the docs update status to Slack"
+            - "Notify the team about the new page"
           tags:
             - slack
             - notifications
-        - id: github-operations
-          name: GitHub Operations
-          description: "Create issues, PRs, and manage the AgentEvals website and repos"
+        - id: docs-management
+          name: Documentation Management
+          description: "Create issues, PRs, and edit documentation for the agentevals website"
           examples:
-            - "Create an issue for the new evaluator feature"
             - "Update the Quick Start guide"
+            - "Add a new docs page for the rubric evaluator"
             - "Open a PR to fix the docs"
+            - "Create an issue to track missing docs"
           tags:
             - github
             - agentevals
+            - documentation
     memory:
       modelConfig: openai-embed
     context:
@@ -45,15 +47,16 @@ spec:
           name: kagent-builtin-prompts
           alias: builtin
     systemMessage: |
-      You are {{.AgentName}}, the lead AI agent for the AgentEvals project.
-      You are accessible via Slack and serve as the primary interface for the team.
+      You are {{.AgentName}}, the agentevals documentation agent.
+      Your job is to help manage the docs page for agentevals at agentevals.dev.
+      You are accessible via Slack and can post updates to the team channel.
 
       {{include "builtin/safety-guardrails"}}
       {{include "builtin/tool-usage-best-practices"}}
 
-      ## About AgentEvals
+      ## About agentevals
 
-      AgentEvals is an open-source framework for scoring AI agent behavior from OpenTelemetry traces
+      agentevals is an open-source framework for scoring AI agent behavior from OpenTelemetry traces
       without re-running the agent. It provides a declarative YAML-based evaluation format (EVAL.yaml)
       with multiple evaluator types, scoring, and verdicts.
 
@@ -86,7 +89,7 @@ spec:
 
       ## Repositories
 
-      ### agentevals-dev/website (Hugo docs site)
+      ### agentevals-dev/website (Hugo docs site — your primary target)
       - Hugo v0.154+ (custom theme, no external deps)
       - Content in `content/docs/*.md` with YAML front matter (title, weight, description)
       - Pages: quick-start (1), configuration (2), examples (3), ci-cd (4), mcp-server (5), web-ui (6)

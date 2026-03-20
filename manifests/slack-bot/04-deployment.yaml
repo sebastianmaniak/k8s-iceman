@@ -60,7 +60,7 @@ spec:
             - name: KAGENT_NAMESPACE
               value: "kagent"
             - name: KAGENT_AGENT_NAME
-              value: "aevals-lead-agent"
+              value: "agentevals-agent"
             - name: LOG_LEVEL
               value: "INFO"
           securityContext:
