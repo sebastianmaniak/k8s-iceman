@@ -4,6 +4,22 @@ GitOps-managed Kubernetes cluster running on Talos Linux, powered by Argo CD.
 
 Deploys open-source tools from the Solo.io ecosystem: **Istio Ambient Mesh**, **kagent**, and **Agentgateway**. Secrets are managed by **HashiCorp Vault OSS** + **External Secrets Operator**.
 
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Repository Structure](#repository-structure)
+- [Component Versions](#component-versions)
+- [Sync Wave Order](#sync-wave-order)
+- [Quick Start](#quick-start)
+- [Secrets Management](#secrets-management)
+- [F5 BIG-IP Load Balancing](#f5-bigip-load-balancing)
+- [Slack Bot (agentevals)](#slack-bot-agentevals)
+- [Telegram Bot](#telegram-bot)
+- [F5 BIG-IP Agent](#f5-bigip-agent)
+- [FortiGate Agent](#fortigate-agent)
+- [CI/CD](#cicd)
+- [Making Changes (GitOps Workflow)](#making-changes-gitops-workflow)
+
 ## Architecture
 
 ```
@@ -270,6 +286,60 @@ Client ──> F5 BIG-IP VIP (172.16.20.60:443)
                     K8s NodePort Service
                         │
                     argocd-server pod
+```
+
+## Slack Bot (agentevals)
+
+A Slack bot that connects your workspace to the **agentevals-agent** via the A2A protocol. The agent's job is to help manage the documentation site for agentevals (`agentevals-dev/website`).
+
+### Features
+
+- **HITL approvals** -- Block Kit Approve / Deny buttons for mutating GitHub operations
+- **Thread context** -- multi-turn conversations via Slack threads
+- **ask_user support** -- choice buttons or free-text replies for agent questions
+- **Text-based approve/deny** -- type "approve" or "deny" in threads as an alternative to buttons
+
+### Agent Tools
+
+| MCP Server | Tools | Purpose |
+|-----------|-------|---------|
+| `slack-mcp` | `slack_post_message` | Post updates to Slack channels |
+| `github-mcp` | `get_file_contents`, `create_or_update_file`, `push_files`, `create_branch`, `create_issue`, `create_pull_request`, etc. | Manage docs in agentevals-dev/website |
+
+Mutating GitHub tools (`create_or_update_file`, `push_files`, `create_pull_request`, `merge_pull_request`) require HITL approval.
+
+### Manifests
+
+| File | Description |
+|------|-------------|
+| `manifests/slack-bot/01-external-secret.yaml` | Pulls Slack credentials from Vault |
+| `manifests/slack-bot/02-slack-mcp.yaml` | Slack MCP server (stdio transport) |
+| `manifests/slack-bot/03-agent.yaml` | agentevals-agent with Slack + GitHub tools |
+| `manifests/slack-bot/04-deployment.yaml` | Slack bot Deployment (Socket Mode) |
+
+### Deployment
+
+**Image:** `docker.io/sebbycorp/kagent-slack-bot:latest`
+
+```bash
+# Store Slack credentials in Vault
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN=<token> \
+  vault kv put secret/slack \
+    bot_token="xoxb-..." app_token="xapp-..." \
+    team_id="T..." channel_ids="C..."
+
+# ArgoCD auto-syncs from apps/slack-bot.yaml
+# Or apply manually:
+kubectl apply -f manifests/slack-bot/
+```
+
+### Local Development
+
+```bash
+cd apps/slack-bot-src
+docker buildx build --platform linux/amd64,linux/arm64 \
+  --tag docker.io/sebbycorp/kagent-slack-bot:latest --push .
+kubectl rollout restart deployment slack-bot -n kagent
 ```
 
 ## Telegram Bot
