@@ -864,7 +864,7 @@
           <div class="stat-label">Chat Bots</div>
         </div>
         <div class="stat">
-          <div class="stat-value">28</div>
+          <div class="stat-value">110+</div>
           <div class="stat-label">MCP Tools</div>
         </div>
         <div class="stat">
@@ -996,9 +996,9 @@
             </div>
             <div class="card">
               <h3>F5 BIG-IP Agent</h3>
-              <p>Manages enterprise load balancers through natural language. Controls pools, virtual servers, nodes, iRules, SSL certificates, and monitors via 28 MCP tools.</p>
+              <p>Manages enterprise load balancers through natural language. Controls pools, virtual servers, nodes, iRules, SSL certificates, and monitors via 30 MCP tools.</p>
               <div class="tags">
-                <span class="tag tag-orange">28 MCP tools</span>
+                <span class="tag tag-orange">30 MCP tools</span>
                 <span class="tag tag-green">pools</span>
                 <span class="tag tag-blue">VIPs</span>
                 <span class="tag tag-pink">iRules</span>
@@ -1012,6 +1012,16 @@
                 <span class="tag tag-green">KV v1/v2</span>
                 <span class="tag tag-purple">PKI</span>
                 <span class="tag tag-pink">HITL</span>
+              </div>
+            </div>
+            <div class="card">
+              <h3>GitHub Agent</h3>
+              <p>AgentEvals product expert managing agentevals-dev/website Hugo documentation. 18 tools via GitHub Copilot hosted MCP for file ops, PRs, issues, and code search.</p>
+              <div class="tags">
+                <span class="tag tag-purple">18 MCP tools</span>
+                <span class="tag tag-blue">Copilot MCP</span>
+                <span class="tag tag-green">PRs</span>
+                <span class="tag tag-orange">HITL</span>
               </div>
             </div>
             <div class="card">
@@ -1167,17 +1177,18 @@
           <div class="card-icon" style="background: rgba(129, 140, 248, 0.15); color: var(--accent2); font-size: 1.8rem;">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
           </div>
-          <h3>Slack Bot</h3>
-          <p>Socket Mode bot with thread-aware context. Integrates Slack MCP for notifications and GitHub Copilot MCP for docs management and PR workflows.</p>
+          <h3>Slack Bot (AgentEvals)</h3>
+          <p>Socket Mode bot powering the agentevals-agent &mdash; a docs management agent for the agentevals-dev/website Hugo site. Slack MCP for notifications, GitHub Copilot MCP for PRs and file ops.</p>
           <div class="tags">
             <span class="tag tag-purple">Socket Mode</span>
-            <span class="tag tag-blue">Thread Context</span>
+            <span class="tag tag-blue">Docs Mgmt</span>
             <span class="tag tag-green">GitHub MCP</span>
+            <span class="tag tag-orange">HITL</span>
           </div>
           <div class="code-block" style="margin-top: 1rem;">
             <div class="code-header">
               <div class="code-dots"><span></span><span></span><span></span></div>
-              <span class="code-filename">MCP server config</span>
+              <span class="code-filename">agentevals-agent MCP config</span>
             </div>
             <pre><code><span class="comment"># Two MCP integrations</span>
 <span class="key">slack-mcp</span>:  <span class="type">MCPServer</span> (stdio)
@@ -1186,7 +1197,7 @@
 
 <span class="key">github-mcp</span>: <span class="type">RemoteMCPServer</span>
   <span class="value">api.githubcopilot.com/mcp/</span>
-  <span class="string">file ops, PRs, issues</span></code></pre>
+  <span class="string">file ops, PRs, issues, code search</span></code></pre>
           </div>
         </div>
 
@@ -1319,7 +1330,7 @@
                   <li>Enable KV v2 engine at <code>secret/</code></li>
                   <li>Configure Kubernetes auth for ESO</li>
                   <li>Create policies + roles</li>
-                  <li>Store initial LLM API key</li>
+                  <li>Store secrets: LLM API keys, Slack creds, GitHub PAT, F5 credentials</li>
                 </ol>
               </div>
             </details>
@@ -1520,6 +1531,7 @@
               <ul style="margin-top: 0.5rem; padding-left: 1.2rem;">
                 <li><strong>kagent-tool-server</strong> &mdash; <code>kagent-tools.kagent:8084/mcp</code></li>
                 <li><strong>f5-bigip-mcp</strong> &mdash; F5 wrapper service</li>
+                <li><strong>vault-mcp</strong> &mdash; HashiCorp vault-mcp-server</li>
                 <li><strong>github-mcp</strong> &mdash; GitHub Copilot hosted MCP</li>
                 <li><strong>fortigate-mcp</strong> &mdash; FortiGate firewall MCP</li>
               </ul>
@@ -1537,7 +1549,7 @@
         </div>
 
         <div>
-          <h3 style="margin-bottom: 1rem;">F5 BIG-IP Tool Catalog (28 tools)</h3>
+          <h3 style="margin-bottom: 1rem;">F5 BIG-IP Tool Catalog (30 tools)</h3>
           <div class="grid grid-2" style="gap: 0.75rem;">
             <div class="card" style="padding: 1rem;">
               <h3 style="font-size: 0.85rem;">Pools <span class="tag tag-blue" style="font-size: 0.65rem;">8 tools</span></h3>
@@ -1563,6 +1575,28 @@
               <h3 style="font-size: 0.85rem;">System <span class="tag tag-cyan" style="font-size: 0.65rem;">4 tools</span></h3>
               <p style="font-size: 0.8rem;">info, failover, perf, sync</p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 3rem;">
+        <h3 style="margin-bottom: 1rem;">Vault Tool Catalog (16 tools)</h3>
+        <div class="grid grid-2" style="gap: 0.75rem; margin-bottom: 3rem;">
+          <div class="card" style="padding: 1rem;">
+            <h3 style="font-size: 0.85rem;">Mounts <span class="tag tag-orange" style="font-size: 0.65rem;">3 tools</span></h3>
+            <p style="font-size: 0.8rem;">create, list, delete</p>
+          </div>
+          <div class="card" style="padding: 1rem;">
+            <h3 style="font-size: 0.85rem;">KV Secrets <span class="tag tag-green" style="font-size: 0.65rem;">4 tools</span></h3>
+            <p style="font-size: 0.8rem;">read, write, list, delete</p>
+          </div>
+          <div class="card" style="padding: 1rem;">
+            <h3 style="font-size: 0.85rem;">PKI Engine <span class="tag tag-purple" style="font-size: 0.65rem;">4 tools</span></h3>
+            <p style="font-size: 0.8rem;">enable, create/read issuer, list issuers</p>
+          </div>
+          <div class="card" style="padding: 1rem;">
+            <h3 style="font-size: 0.85rem;">PKI Roles & Certs <span class="tag tag-pink" style="font-size: 0.65rem;">5 tools</span></h3>
+            <p style="font-size: 0.8rem;">create/read/list/delete role, issue cert</p>
           </div>
         </div>
       </div>
