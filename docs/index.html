@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>k8s-iceman | AI-Powered Kubernetes Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0e17;
+      --bg-card: #111827;
+      --bg-card-hover: #1a2332;
+      --border: #1e293b;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent2: #818cf8;
+      --accent3: #a78bfa;
+      --green: #34d399;
+      --orange: #fb923c;
+      --pink: #f472b6;
+      --red: #f87171;
+      --cyan: #22d3ee;
+      --radius: 12px;
+      --glow: 0 0 40px rgba(56, 189, 248, 0.15);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    code, .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Animated background grid */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Floating orbs */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.4;
+      z-index: 0;
+      pointer-events: none;
+      animation: float 20s ease-in-out infinite;
+    }
+    .orb-1 { width: 400px; height: 400px; background: rgba(56, 189, 248, 0.15); top: 10%; left: -5%; animation-delay: 0s; }
+    .orb-2 { width: 350px; height: 350px; background: rgba(129, 140, 248, 0.12); top: 50%; right: -5%; animation-delay: -7s; }
+    .orb-3 { width: 300px; height: 300px; background: rgba(167, 139, 250, 0.1); bottom: 10%; left: 30%; animation-delay: -14s; }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(30px, -30px) scale(1.05); }
+      66% { transform: translate(-20px, 20px) scale(0.95); }
+    }
+
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 1rem 2rem;
+      background: rgba(10, 14, 23, 0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-size: 1.2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .nav-logo svg { width: 28px; height: 28px; }
+
+    .nav-links {
+      display: flex;
+      gap: 0.25rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.5rem 0.85rem;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+      background: rgba(56, 189, 248, 0.1);
+    }
+
+    .nav-hamburger {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      padding: 0.5rem;
+    }
+
+    /* Hero */
+    .hero {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6rem 2rem 4rem;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 1rem;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 2rem;
+      animation: fadeInUp 0.8s ease;
+    }
+
+    .hero-badge .dot {
+      width: 6px;
+      height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      animation: fadeInUp 0.8s ease 0.1s both;
+    }
+
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, var(--accent), var(--accent2), var(--accent3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin-bottom: 2.5rem;
+      animation: fadeInUp 0.8s ease 0.2s both;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 1rem;
+      animation: fadeInUp 0.8s ease 0.3s both;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.3s;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(56, 189, 248, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(56, 189, 248, 0.4);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.05);
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Architecture diagram */
+    .hero-diagram {
+      margin-top: 4rem;
+      width: 100%;
+      max-width: 900px;
+      animation: fadeInUp 0.8s ease 0.4s both;
+    }
+
+    .arch-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      padding: 2rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .arch-node {
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .arch-node.user { background: rgba(244, 114, 182, 0.15); color: var(--pink); border: 1px solid rgba(244, 114, 182, 0.3); }
+    .arch-node.bot { background: rgba(34, 211, 238, 0.15); color: var(--cyan); border: 1px solid rgba(34, 211, 238, 0.3); }
+    .arch-node.agent { background: rgba(56, 189, 248, 0.15); color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .arch-node.infra { background: rgba(52, 211, 153, 0.15); color: var(--green); border: 1px solid rgba(52, 211, 153, 0.3); }
+    .arch-node.k8s { background: rgba(129, 140, 248, 0.15); color: var(--accent2); border: 1px solid rgba(129, 140, 248, 0.3); }
+
+    .arch-arrow {
+      color: var(--text-muted);
+      font-size: 1.2rem;
+    }
+
+    /* Sections */
+    section {
+      position: relative;
+      z-index: 1;
+      padding: 6rem 2rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    .section-label {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 0.75rem;
+    }
+
+    .section-header h2 {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .section-header p {
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Cards grid */
+    .grid {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(56, 189, 248, 0.3);
+      transform: translateY(-4px);
+      box-shadow: var(--glow);
+    }
+
+    .card:hover::before { opacity: 1; }
+
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .card p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    /* Tag pills */
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 1rem;
+    }
+
+    .tag {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-weight: 500;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .tag-blue { background: rgba(56, 189, 248, 0.15); color: var(--accent); }
+    .tag-purple { background: rgba(129, 140, 248, 0.15); color: var(--accent2); }
+    .tag-green { background: rgba(52, 211, 153, 0.15); color: var(--green); }
+    .tag-orange { background: rgba(251, 146, 60, 0.15); color: var(--orange); }
+    .tag-pink { background: rgba(244, 114, 182, 0.15); color: var(--pink); }
+    .tag-cyan { background: rgba(34, 211, 238, 0.15); color: var(--cyan); }
+
+    /* Flow / Pipeline section */
+    .pipeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+
+    .pipeline::before {
+      content: '';
+      position: absolute;
+      left: 24px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--accent), var(--accent2), var(--accent3));
+      opacity: 0.3;
+    }
+
+    .pipeline-step {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+      padding: 1.5rem 0;
+      position: relative;
+    }
+
+    .pipeline-dot {
+      width: 50px;
+      min-width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      z-index: 1;
+      border: 2px solid;
+    }
+
+    .pipeline-dot.wave0 { background: rgba(56, 189, 248, 0.15); border-color: var(--accent); color: var(--accent); }
+    .pipeline-dot.wave1 { background: rgba(129, 140, 248, 0.15); border-color: var(--accent2); color: var(--accent2); }
+    .pipeline-dot.wave2 { background: rgba(167, 139, 250, 0.15); border-color: var(--accent3); color: var(--accent3); }
+    .pipeline-dot.wave3 { background: rgba(52, 211, 153, 0.15); border-color: var(--green); color: var(--green); }
+    .pipeline-dot.wave4 { background: rgba(251, 146, 60, 0.15); border-color: var(--orange); color: var(--orange); }
+    .pipeline-dot.wave5 { background: rgba(244, 114, 182, 0.15); border-color: var(--pink); color: var(--pink); }
+
+    .pipeline-content h4 {
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .pipeline-content p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Interactive tabs */
+    .tab-container { margin-top: 2rem; }
+
+    .tab-buttons {
+      display: flex;
+      gap: 0.25rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.35rem;
+    }
+
+    .tab-btn {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .tab-btn.active {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+    }
+
+    .tab-btn:hover:not(.active) {
+      color: var(--text);
+    }
+
+    .tab-panel { display: none; animation: fadeIn 0.3s ease; }
+    .tab-panel.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Code blocks */
+    .code-block {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 1rem;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .code-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .code-dots span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .code-dots span:nth-child(1) { background: #ff5f56; }
+    .code-dots span:nth-child(2) { background: #ffbd2e; }
+    .code-dots span:nth-child(3) { background: #27c93f; }
+
+    .code-filename {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .code-block pre {
+      padding: 1.25rem;
+      overflow-x: auto;
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+
+    .code-block code {
+      color: var(--text-muted);
+    }
+
+    .code-block .keyword { color: var(--pink); }
+    .code-block .string { color: var(--green); }
+    .code-block .comment { color: #6b7280; }
+    .code-block .key { color: var(--accent); }
+    .code-block .value { color: var(--orange); }
+    .code-block .type { color: var(--accent2); }
+
+    /* Stats banner */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1.5rem;
+      padding: 3rem 2rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin: 2rem 0;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 0.25rem;
+    }
+
+    /* Secret flow diagram */
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      padding: 2rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-top: 2rem;
+    }
+
+    .flow-box {
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
+      text-align: center;
+      min-width: 140px;
+    }
+
+    .flow-box h4 { font-size: 0.85rem; margin-bottom: 0.25rem; }
+    .flow-box p { font-size: 0.7rem; color: var(--text-muted); }
+
+    .flow-box.vault { background: rgba(251, 146, 60, 0.1); border: 1px solid rgba(251, 146, 60, 0.3); }
+    .flow-box.eso { background: rgba(129, 140, 248, 0.1); border: 1px solid rgba(129, 140, 248, 0.3); }
+    .flow-box.secret { background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.3); }
+    .flow-box.pod { background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); }
+
+    .flow-arrow {
+      font-size: 1.5rem;
+      color: var(--text-muted);
+    }
+
+    /* Collapsible sections */
+    details {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 0.75rem;
+      overflow: hidden;
+    }
+
+    details[open] {
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+
+    summary {
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: background 0.2s;
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    summary::after {
+      content: '+';
+      margin-left: auto;
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+    }
+
+    details[open] summary::after {
+      content: '-';
+    }
+
+    summary:hover { background: rgba(56, 189, 248, 0.05); }
+
+    details .detail-content {
+      padding: 0 1.25rem 1.25rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.8;
+    }
+
+    /* Network map */
+    .network-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-top: 1rem;
+    }
+
+    .network-table th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .network-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+    }
+
+    .network-table tr:hover td {
+      background: rgba(56, 189, 248, 0.03);
+    }
+
+    .network-table code {
+      font-size: 0.8rem;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      color: var(--accent);
+    }
+
+    /* Footer */
+    footer {
+      position: relative;
+      z-index: 1;
+      padding: 3rem 2rem;
+      text-align: center;
+      border-top: 1px solid var(--border);
+    }
+
+    footer p {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover { text-decoration: underline; }
+
+    /* Scroll animations */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.6s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      nav { padding: 0.75rem 1rem; }
+
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: rgba(10, 14, 23, 0.95);
+        backdrop-filter: blur(20px);
+        flex-direction: column;
+        padding: 1rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .nav-links.open { display: flex; }
+      .nav-hamburger { display: block; }
+
+      section { padding: 3rem 1rem; }
+      .hero { padding: 5rem 1rem 3rem; }
+      .stats { grid-template-columns: repeat(2, 1fr); gap: 1rem; padding: 1.5rem; }
+      .stat-value { font-size: 1.8rem; }
+
+      .flow-diagram { flex-direction: column; }
+      .flow-arrow { transform: rotate(90deg); }
+
+      .arch-flow { flex-direction: column; gap: 0.5rem; }
+      .arch-arrow { transform: rotate(90deg); }
+
+      .pipeline::before { left: 18px; }
+      .pipeline-dot { width: 38px; min-width: 38px; height: 38px; font-size: 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="nav-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="url(#navGrad)"/>
+        <path d="M2 17l10 5 10-5" stroke="url(#navGrad)" opacity="0.5"/>
+        <path d="M2 12l10 5 10-5" stroke="url(#navGrad)" opacity="0.75"/>
+        <defs><linearGradient id="navGrad" x1="0" y1="0" x2="24" y2="24"><stop stop-color="#38bdf8"/><stop offset="1" stop-color="#818cf8"/></linearGradient></defs>
+      </svg>
+      k8s-iceman
+    </div>
+    <button class="nav-hamburger" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+    </button>
+    <ul class="nav-links">
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#agents">Agents</a></li>
+      <li><a href="#bots">Bots</a></li>
+      <li><a href="#gitops">GitOps</a></li>
+      <li><a href="#secrets">Secrets</a></li>
+      <li><a href="#networking">Network</a></li>
+      <li><a href="#tools">MCP Tools</a></li>
+    </ul>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero" id="top">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Talos Linux on Proxmox &middot; 2 Nodes
+    </div>
+    <h1>
+      <span class="gradient">AI-Powered</span><br>
+      Kubernetes Platform
+    </h1>
+    <p>
+      A GitOps-managed cluster running kagent AI agents, Istio ambient mesh, HashiCorp Vault, and multi-channel chat bots &mdash; all orchestrated by ArgoCD.
+    </p>
+    <div class="hero-buttons">
+      <a href="https://github.com/ProfessorSeb/k8s-iceman" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        View on GitHub
+      </a>
+      <a href="#overview" class="btn btn-outline">Explore Architecture</a>
+    </div>
+
+    <div class="hero-diagram">
+      <div class="arch-flow">
+        <span class="arch-node user">You</span>
+        <span class="arch-arrow">&rarr;</span>
+        <span class="arch-node bot">Telegram / Slack / WhatsApp</span>
+        <span class="arch-arrow">&rarr;</span>
+        <span class="arch-node agent">kagent A2A</span>
+        <span class="arch-arrow">&rarr;</span>
+        <span class="arch-node k8s">Kubernetes API</span>
+        <span class="arch-arrow">&rarr;</span>
+        <span class="arch-node infra">Cluster</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section id="overview">
+    <div class="container reveal">
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value">18+</div>
+          <div class="stat-label">AI Agents</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">3</div>
+          <div class="stat-label">Chat Bots</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">28</div>
+          <div class="stat-label">MCP Tools</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">7</div>
+          <div class="stat-label">Sync Waves</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">6</div>
+          <div class="stat-label">Namespaces</div>
+        </div>
+      </div>
+
+      <div class="section-header" style="margin-top: 4rem;">
+        <span class="section-label">Platform Overview</span>
+        <h2>Everything at a Glance</h2>
+        <p>An enterprise-grade AI agent infrastructure combining GitOps, secrets management, service mesh, and multi-channel agent interfaces.</p>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="card">
+          <div class="card-icon" style="background: rgba(56, 189, 248, 0.15); color: var(--accent);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          </div>
+          <h3>kagent AI Agents</h3>
+          <p>Declarative Kubernetes-native AI agents with long-term memory, context compaction, and human-in-the-loop approval workflows.</p>
+          <div class="tags">
+            <span class="tag tag-blue">gpt-5.4</span>
+            <span class="tag tag-purple">A2A Protocol</span>
+            <span class="tag tag-green">HITL</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon" style="background: rgba(52, 211, 153, 0.15); color: var(--green);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3>HashiCorp Vault</h3>
+          <p>Centralized secrets management with Kubernetes auth. External Secrets Operator syncs secrets from Vault to K8s automatically.</p>
+          <div class="tags">
+            <span class="tag tag-orange">KV v2</span>
+            <span class="tag tag-green">K8s Auth</span>
+            <span class="tag tag-blue">ESO</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon" style="background: rgba(129, 140, 248, 0.15); color: var(--accent2);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+          </div>
+          <h3>Multi-Channel Bots</h3>
+          <p>Telegram, Slack, and WhatsApp bots that connect users to kagent AI agents with approval workflows and thread-aware context.</p>
+          <div class="tags">
+            <span class="tag tag-cyan">Telegram</span>
+            <span class="tag tag-purple">Slack</span>
+            <span class="tag tag-green">WhatsApp</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon" style="background: rgba(244, 114, 182, 0.15); color: var(--pink);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          </div>
+          <h3>Istio Ambient Mesh</h3>
+          <p>Zero-trust networking with ambient mode &mdash; no sidecars needed. Includes istiod, CNI plugin, and ztunnel for transparent encryption.</p>
+          <div class="tags">
+            <span class="tag tag-pink">Ambient</span>
+            <span class="tag tag-blue">ztunnel</span>
+            <span class="tag tag-purple">mTLS</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon" style="background: rgba(251, 146, 60, 0.15); color: var(--orange);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          </div>
+          <h3>ArgoCD GitOps</h3>
+          <p>App of Apps pattern with sync waves, auto-sync, self-heal, and prune. The entire cluster state is declared in this repo.</p>
+          <div class="tags">
+            <span class="tag tag-orange">App of Apps</span>
+            <span class="tag tag-green">Auto-Sync</span>
+            <span class="tag tag-blue">Self-Heal</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon" style="background: rgba(34, 211, 238, 0.15); color: var(--cyan);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          </div>
+          <h3>AgentGateway</h3>
+          <p>Gateway for AI agent traffic with Langfuse OTLP tracing. Enriches spans with LLM metadata: provider, prompt, tokens.</p>
+          <div class="tags">
+            <span class="tag tag-cyan">v2.2.1</span>
+            <span class="tag tag-orange">Langfuse</span>
+            <span class="tag tag-purple">OTLP</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Agents Section -->
+  <section id="agents">
+    <div class="container reveal">
+      <div class="section-header">
+        <span class="section-label">AI Agents</span>
+        <h2>Declarative Agent Fleet</h2>
+        <p>All agents are Kubernetes CRDs managed by kagent. From infrastructure ops to network security, each agent specializes in a domain.</p>
+      </div>
+
+      <div class="tab-container">
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="switchTab(event, 'infra-agents')">Infrastructure</button>
+          <button class="tab-btn" onclick="switchTab(event, 'net-agents')">Network & Security</button>
+          <button class="tab-btn" onclick="switchTab(event, 'feature-agents')">Feature Demos</button>
+          <button class="tab-btn" onclick="switchTab(event, 'builtin-agents')">Built-in Agents</button>
+        </div>
+
+        <div id="infra-agents" class="tab-panel active">
+          <div class="grid grid-2">
+            <div class="card">
+              <h3>Full K8s Ops Agent</h3>
+              <p>Multi-tool agent combining Kubernetes, Helm, and Prometheus operations. Features long-term memory and event compaction for extended debugging sessions.</p>
+              <div class="tags">
+                <span class="tag tag-blue">kubectl</span>
+                <span class="tag tag-green">helm</span>
+                <span class="tag tag-purple">prometheus</span>
+                <span class="tag tag-orange">memory</span>
+              </div>
+            </div>
+            <div class="card">
+              <h3>F5 BIG-IP Agent</h3>
+              <p>Manages enterprise load balancers through natural language. Controls pools, virtual servers, nodes, iRules, SSL certificates, and monitors via 28 MCP tools.</p>
+              <div class="tags">
+                <span class="tag tag-orange">28 MCP tools</span>
+                <span class="tag tag-green">pools</span>
+                <span class="tag tag-blue">VIPs</span>
+                <span class="tag tag-pink">iRules</span>
+              </div>
+            </div>
+            <div class="card">
+              <h3>Istio Agent</h3>
+              <p>Manages the Istio ambient mesh &mdash; traffic policies, authorization, virtual services, and gateway configuration through a dedicated agent.</p>
+              <div class="tags">
+                <span class="tag tag-pink">ambient</span>
+                <span class="tag tag-blue">traffic mgmt</span>
+                <span class="tag tag-green">authz</span>
+              </div>
+            </div>
+            <div class="card">
+              <h3>Argo Rollouts Agent</h3>
+              <p>Progressive delivery management. Controls canary deployments, blue-green rollouts, and traffic shifting through kagent.</p>
+              <div class="tags">
+                <span class="tag tag-cyan">canary</span>
+                <span class="tag tag-purple">blue-green</span>
+                <span class="tag tag-green">rollouts</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="net-agents" class="tab-panel">
+          <div class="grid grid-2">
+            <div class="card">
+              <h3>FortiGate Agent</h3>
+              <p>Manages FortiGate firewall appliances via natural language. Handles firewall policies, NAT rules, VIPs, routing, DHCP, wireless clients, and device discovery.</p>
+              <div class="tags">
+                <span class="tag tag-red" style="background: rgba(248, 113, 113, 0.15); color: var(--red);">firewall</span>
+                <span class="tag tag-orange">NAT</span>
+                <span class="tag tag-blue">VIP</span>
+                <span class="tag tag-green">wireless</span>
+              </div>
+            </div>
+            <div class="card">
+              <h3>kGateway Agent</h3>
+              <p>Built-in agent for managing Kubernetes Gateway API resources. Configures HTTPRoutes, Gateways, and traffic policies.</p>
+              <div class="tags">
+                <span class="tag tag-blue">Gateway API</span>
+                <span class="tag tag-purple">HTTPRoute</span>
+                <span class="tag tag-green">TLS</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="feature-agents" class="tab-panel">
+          <div class="grid grid-2">
+            <div class="card">
+              <h3>Memory Agent</h3>
+              <p>Demonstrates persistent vector-backed long-term memory using OpenAI embeddings. The agent remembers context across conversations.</p>
+              <div class="tags"><span class="tag tag-purple">vector store</span><span class="tag tag-blue">openai-embed</span></div>
+            </div>
+            <div class="card">
+              <h3>Human-in-the-Loop Agent</h3>
+              <p>Requires explicit user approval before executing destructive operations. Showcases HITL patterns with approve/reject buttons.</p>
+              <div class="tags"><span class="tag tag-orange">approval</span><span class="tag tag-green">safety</span></div>
+            </div>
+            <div class="card">
+              <h3>Context Compaction Agent</h3>
+              <p>Automatically compresses conversation context at 120k tokens. Retains last 80 events with 8-event overlap for seamless debugging sessions.</p>
+              <div class="tags"><span class="tag tag-cyan">120k threshold</span><span class="tag tag-purple">compaction</span></div>
+            </div>
+            <div class="card">
+              <h3>Prompt Template Agent</h3>
+              <p>SRE-focused agent with reusable prompt fragments from Kubernetes ConfigMaps. Demonstrates composable, declarative prompts.</p>
+              <div class="tags"><span class="tag tag-pink">ConfigMap</span><span class="tag tag-blue">SRE</span></div>
+            </div>
+            <div class="card">
+              <h3>Multi-Runtime Agents</h3>
+              <p>Demonstrates both Go ADK runtime (~2s cold start) and Python ADK runtime for different performance profiles.</p>
+              <div class="tags"><span class="tag tag-blue">Go ADK</span><span class="tag tag-green">Python ADK</span></div>
+            </div>
+            <div class="card">
+              <h3>Git Skills Agents</h3>
+              <p>Agents that load knowledge from Git repositories &mdash; public repos, private repos, and mixed sources. Declarative knowledge management.</p>
+              <div class="tags"><span class="tag tag-orange">git skills</span><span class="tag tag-purple">knowledge</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="builtin-agents" class="tab-panel">
+          <div class="grid grid-3">
+            <div class="card">
+              <h3>k8s-agent</h3>
+              <p>Core Kubernetes operations: pods, deployments, services, configmaps, and general cluster management.</p>
+            </div>
+            <div class="card">
+              <h3>helm-agent</h3>
+              <p>Helm chart lifecycle: install, upgrade, rollback, and inspect releases.</p>
+            </div>
+            <div class="card">
+              <h3>istio-agent</h3>
+              <p>Istio mesh configuration: virtual services, destination rules, and gateways.</p>
+            </div>
+            <div class="card">
+              <h3>kgateway-agent</h3>
+              <p>Kubernetes Gateway API: HTTPRoutes, Gateways, and traffic policies.</p>
+            </div>
+            <div class="card">
+              <h3>promql-agent</h3>
+              <p>Prometheus query builder and executor for metrics exploration.</p>
+            </div>
+            <div class="card">
+              <h3>observability-agent</h3>
+              <p>Cluster monitoring, alerting, and diagnostics.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bots Section -->
+  <section id="bots">
+    <div class="container reveal">
+      <div class="section-header">
+        <span class="section-label">Chat Interfaces</span>
+        <h2>Talk to Your Cluster</h2>
+        <p>Three production bots connect users to AI agents via familiar messaging platforms. All support human-in-the-loop approval.</p>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="card">
+          <div class="card-icon" style="background: rgba(34, 211, 238, 0.15); color: var(--cyan); font-size: 1.8rem;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+          </div>
+          <h3>Telegram Bot</h3>
+          <p>Python polling bot with per-user context tracking, inline approval buttons, and 4000-char message chunking. No webhook or ingress required.</p>
+          <div class="tags">
+            <span class="tag tag-cyan">Python</span>
+            <span class="tag tag-green">Polling</span>
+            <span class="tag tag-purple">HITL</span>
+          </div>
+          <div class="code-block" style="margin-top: 1rem;">
+            <div class="code-header">
+              <div class="code-dots"><span></span><span></span><span></span></div>
+              <span class="code-filename">A2A message flow</span>
+            </div>
+            <pre><code><span class="comment"># User sends /status in Telegram</span>
+<span class="key">POST</span> /api/a2a/kagent/telegram-k8s-agent/
+<span class="comment"># JSON-RPC 2.0</span>
+{ <span class="key">"method"</span>: <span class="string">"message/send"</span>,
+  <span class="key">"params"</span>: {
+    <span class="key">"parts"</span>: [{ <span class="key">"kind"</span>: <span class="string">"text"</span>, ... }]
+  }
+}</code></pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon" style="background: rgba(129, 140, 248, 0.15); color: var(--accent2); font-size: 1.8rem;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
+          </div>
+          <h3>Slack Bot</h3>
+          <p>Socket Mode bot with thread-aware context. Integrates Slack MCP for notifications and GitHub Copilot MCP for docs management and PR workflows.</p>
+          <div class="tags">
+            <span class="tag tag-purple">Socket Mode</span>
+            <span class="tag tag-blue">Thread Context</span>
+            <span class="tag tag-green">GitHub MCP</span>
+          </div>
+          <div class="code-block" style="margin-top: 1rem;">
+            <div class="code-header">
+              <div class="code-dots"><span></span><span></span><span></span></div>
+              <span class="code-filename">MCP server config</span>
+            </div>
+            <pre><code><span class="comment"># Two MCP integrations</span>
+<span class="key">slack-mcp</span>:  <span class="type">MCPServer</span> (stdio)
+  <span class="value">zencoderai/slack-mcp:latest</span>
+  <span class="string">slack_post_message</span> tool
+
+<span class="key">github-mcp</span>: <span class="type">RemoteMCPServer</span>
+  <span class="value">api.githubcopilot.com/mcp/</span>
+  <span class="string">file ops, PRs, issues</span></code></pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-icon" style="background: rgba(52, 211, 153, 0.15); color: var(--green); font-size: 1.8rem;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          </div>
+          <h3>WhatsApp Bot</h3>
+          <p>Node.js bot using Baileys library with pairing code auth. Persistent auth state on PVC, context compaction, and long-term memory.</p>
+          <div class="tags">
+            <span class="tag tag-green">Node.js</span>
+            <span class="tag tag-orange">Baileys</span>
+            <span class="tag tag-purple">PVC Auth</span>
+          </div>
+          <div class="code-block" style="margin-top: 1rem;">
+            <div class="code-header">
+              <div class="code-dots"><span></span><span></span><span></span></div>
+              <span class="code-filename">Agent CRD features</span>
+            </div>
+            <pre><code><span class="key">contextCompaction</span>:
+  <span class="key">tokenThreshold</span>: <span class="value">120000</span>
+  <span class="key">maxRetention</span>:   <span class="value">80</span>
+  <span class="key">overlapEvents</span>:  <span class="value">8</span>
+
+<span class="key">memory</span>:
+  <span class="key">enabled</span>: <span class="value">true</span>
+  <span class="key">embeddingModel</span>: <span class="string">openai-embed</span></code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GitOps Section -->
+  <section id="gitops">
+    <div class="container reveal">
+      <div class="section-header">
+        <span class="section-label">GitOps Pipeline</span>
+        <h2>ArgoCD Sync Waves</h2>
+        <p>The entire cluster is bootstrapped from a single root Application. Sync waves enforce dependency order across all components.</p>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="pipeline">
+          <div class="pipeline-step">
+            <div class="pipeline-dot wave0">W0</div>
+            <div class="pipeline-content">
+              <h4>Vault + External Secrets</h4>
+              <p>Foundation layer. Vault provides secrets, ESO syncs them to K8s. Everything else depends on this.</p>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-dot wave1">W1</div>
+            <div class="pipeline-content">
+              <h4>Istio Base CRDs</h4>
+              <p>Custom Resource Definitions for the service mesh. Required before istiod can start.</p>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-dot wave2">W2</div>
+            <div class="pipeline-content">
+              <h4>Istiod Control Plane</h4>
+              <p>Ambient profile control plane. Manages mesh configuration and certificate distribution.</p>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-dot wave3">W3</div>
+            <div class="pipeline-content">
+              <h4>Istio CNI + ztunnel</h4>
+              <p>Data plane components. CNI plugin intercepts traffic; ztunnel provides transparent mTLS.</p>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-dot wave4">W4</div>
+            <div class="pipeline-content">
+              <h4>kagent + AgentGateway CRDs</h4>
+              <p>Custom Resource Definitions for the AI agent framework and gateway.</p>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-dot wave5">W5</div>
+            <div class="pipeline-content">
+              <h4>kagent + AgentGateway Apps</h4>
+              <p>The AI agent controller, tool server, UI, and gateway instances.</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="code-block">
+            <div class="code-header">
+              <div class="code-dots"><span></span><span></span><span></span></div>
+              <span class="code-filename">bootstrap/root-app.yaml</span>
+            </div>
+            <pre><code><span class="key">apiVersion</span>: argoproj.io/v1alpha1
+<span class="key">kind</span>: <span class="type">Application</span>
+<span class="key">metadata</span>:
+  <span class="key">name</span>: <span class="string">root-app</span>
+  <span class="key">namespace</span>: <span class="string">argocd</span>
+<span class="key">spec</span>:
+  <span class="key">source</span>:
+    <span class="key">repoURL</span>: <span class="string">https://github.com/ProfessorSeb/k8s-iceman.git</span>
+    <span class="key">path</span>: <span class="string">apps</span>
+  <span class="key">syncPolicy</span>:
+    <span class="key">automated</span>:
+      <span class="key">prune</span>: <span class="value">true</span>
+      <span class="key">selfHeal</span>: <span class="value">true</span></code></pre>
+          </div>
+
+          <div style="margin-top: 1.5rem;">
+            <details>
+              <summary>Bootstrap Process</summary>
+              <div class="detail-content">
+                <ol style="padding-left: 1.2rem;">
+                  <li>Create <code>argocd</code> namespace</li>
+                  <li>Install Argo CD v2.14.11</li>
+                  <li>Wait for deployments to be ready</li>
+                  <li>Install Gateway API CRDs v1.4.0</li>
+                  <li>Apply root App of Apps</li>
+                  <li>Run <code>vault-init.sh</code> post-deploy</li>
+                </ol>
+              </div>
+            </details>
+            <details>
+              <summary>Vault Bootstrap</summary>
+              <div class="detail-content">
+                <ol style="padding-left: 1.2rem;">
+                  <li>Initialize Vault (1 key share / 1 threshold)</li>
+                  <li>Unseal Vault</li>
+                  <li>Enable KV v2 engine at <code>secret/</code></li>
+                  <li>Configure Kubernetes auth for ESO</li>
+                  <li>Create policies + roles</li>
+                  <li>Store initial LLM API key</li>
+                </ol>
+              </div>
+            </details>
+            <details>
+              <summary>Multi-Source Helm Pattern</summary>
+              <div class="detail-content">
+                Each ArgoCD Application uses multi-source: the Helm chart is pulled from its registry (by version), and the values file comes from this Git repo under <code>helm-values/</code>. This keeps chart upgrades atomic and version-pinned.
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Secrets Section -->
+  <section id="secrets">
+    <div class="container reveal">
+      <div class="section-header">
+        <span class="section-label">Secrets Management</span>
+        <h2>Vault + External Secrets</h2>
+        <p>Zero inline credentials. Every secret flows from Vault through External Secrets Operator into Kubernetes.</p>
+      </div>
+
+      <div class="flow-diagram">
+        <div class="flow-box vault">
+          <h4>HashiCorp Vault</h4>
+          <p>KV v2 at secret/*</p>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box eso">
+          <h4>External Secrets</h4>
+          <p>ClusterSecretStore</p>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box secret">
+          <h4>K8s Secrets</h4>
+          <p>Auto-synced, 1h refresh</p>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box pod">
+          <h4>Agent Pods</h4>
+          <p>Env vars / mounts</p>
+        </div>
+      </div>
+
+      <div style="margin-top: 3rem;">
+        <h3 style="margin-bottom: 1rem;">Managed Secrets</h3>
+        <div class="grid grid-2">
+          <details>
+            <summary><span style="color: var(--accent);">LLM API Keys</span></summary>
+            <div class="detail-content">
+              <code>secret/kagent/llm</code> &rarr; <strong>kagent-openai</strong>, <strong>kagent-xai</strong>, <strong>kagent-anthropic</strong><br>
+              API keys for OpenAI (gpt-5.4), xAI, and Anthropic models. Consumed by the kagent controller to authenticate with LLM providers.
+            </div>
+          </details>
+          <details>
+            <summary><span style="color: var(--accent2);">Slack Credentials</span></summary>
+            <div class="detail-content">
+              <code>secret/slack</code> &rarr; <strong>slack-credentials</strong><br>
+              Bot token, app token, team ID, and channel IDs for Socket Mode. Used by the Slack bot deployment.
+            </div>
+          </details>
+          <details>
+            <summary><span style="color: var(--green);">GitHub PAT</span></summary>
+            <div class="detail-content">
+              <code>secret/github</code> &rarr; <strong>github-pat</strong><br>
+              Personal Access Token for GitHub Copilot MCP integration. Used for file operations, PRs, and issue management.
+            </div>
+          </details>
+          <details>
+            <summary><span style="color: var(--orange);">F5 BIG-IP Credentials</span></summary>
+            <div class="detail-content">
+              <code>secret/f5/bigip</code> &rarr; <strong>f5-bigip-credentials</strong><br>
+              Host, username, and password for iControl REST API. Used by the F5 wrapper service.
+            </div>
+          </details>
+          <details>
+            <summary><span style="color: var(--pink);">Telegram API Key</span></summary>
+            <div class="detail-content">
+              <code>secret/telegram</code> &rarr; <strong>telegram-bot-secret</strong><br>
+              Bot API token from BotFather. Used by the Telegram bot deployment.
+            </div>
+          </details>
+          <details>
+            <summary><span style="color: var(--cyan);">Langfuse OTLP</span></summary>
+            <div class="detail-content">
+              <code>secret/langfuse</code> &rarr; <strong>langfuse-otel</strong><br>
+              OTLP tracing endpoint and auth headers for AgentGateway observability integration.
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Networking Section -->
+  <section id="networking">
+    <div class="container reveal">
+      <div class="section-header">
+        <span class="section-label">Network Architecture</span>
+        <h2>From Load Balancer to Pod</h2>
+        <p>F5 BIG-IP VIPs, Kubernetes NodePorts, and Istio ambient mesh form the complete networking stack.</p>
+      </div>
+
+      <div class="card" style="overflow-x: auto;">
+        <table class="network-table">
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>F5 VIP</th>
+              <th>NodePort</th>
+              <th>Internal Endpoint</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Argo CD</strong></td>
+              <td><code>172.16.20.60</code></td>
+              <td><code>30443</code></td>
+              <td><code>argocd-server.argocd:443</code></td>
+            </tr>
+            <tr>
+              <td><strong>Vault UI</strong></td>
+              <td><code>172.16.20.61</code></td>
+              <td><code>30820</code></td>
+              <td><code>vault.vault:8200</code></td>
+            </tr>
+            <tr>
+              <td><strong>kagent UI</strong></td>
+              <td><code>172.16.20.62</code></td>
+              <td><code>30808</code></td>
+              <td><code>kagent-controller.kagent:8083</code></td>
+            </tr>
+            <tr>
+              <td><strong>kagent A2A</strong></td>
+              <td>&mdash;</td>
+              <td>&mdash;</td>
+              <td><code>kagent-controller.kagent:8083/api/a2a/</code></td>
+            </tr>
+            <tr>
+              <td><strong>Tool Server</strong></td>
+              <td>&mdash;</td>
+              <td>&mdash;</td>
+              <td><code>kagent-tools.kagent:8084/mcp</code></td>
+            </tr>
+            <tr>
+              <td><strong>OTEL Collector</strong></td>
+              <td>&mdash;</td>
+              <td>&mdash;</td>
+              <td><code>otel-collector.kagent:4317</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top: 2rem;">
+        <div class="grid grid-2">
+          <div class="card">
+            <h3>F5 BIG-IP Layer</h3>
+            <p>Terraform-managed load balancer with health monitors, LTM pools, and virtual servers. Two Talos nodes at <code>172.16.10.157</code> and <code>172.16.10.160</code> serve as pool members.</p>
+            <div class="tags">
+              <span class="tag tag-orange">Terraform</span>
+              <span class="tag tag-blue">iControl REST</span>
+              <span class="tag tag-green">Health Monitors</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Istio Ambient Mesh</h3>
+            <p>Sidecar-less service mesh with ztunnel for transparent mTLS. The CNI plugin handles traffic interception at the network level &mdash; zero application changes needed.</p>
+            <div class="tags">
+              <span class="tag tag-pink">No Sidecars</span>
+              <span class="tag tag-purple">mTLS</span>
+              <span class="tag tag-cyan">ztunnel</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MCP Tools Section -->
+  <section id="tools">
+    <div class="container reveal">
+      <div class="section-header">
+        <span class="section-label">MCP Integration</span>
+        <h2>Model Context Protocol</h2>
+        <p>Agents connect to tools through MCP servers &mdash; local stdio processes or remote HTTP endpoints.</p>
+      </div>
+
+      <div class="grid grid-2">
+        <div>
+          <h3 style="margin-bottom: 1rem;">MCP Server Types</h3>
+          <details>
+            <summary><span style="color: var(--accent);">RemoteMCPServer</span> &mdash; HTTP / Streamable HTTP</summary>
+            <div class="detail-content">
+              Used for shared tool servers that multiple agents connect to over the network.
+              <ul style="margin-top: 0.5rem; padding-left: 1.2rem;">
+                <li><strong>kagent-tool-server</strong> &mdash; <code>kagent-tools.kagent:8084/mcp</code></li>
+                <li><strong>f5-bigip-mcp</strong> &mdash; F5 wrapper service</li>
+                <li><strong>github-mcp</strong> &mdash; GitHub Copilot hosted MCP</li>
+                <li><strong>fortigate-mcp</strong> &mdash; FortiGate firewall MCP</li>
+              </ul>
+            </div>
+          </details>
+          <details>
+            <summary><span style="color: var(--green);">MCPServer</span> &mdash; Stdio Transport</summary>
+            <div class="detail-content">
+              Local MCP servers running as sidecar containers with stdio transport.
+              <ul style="margin-top: 0.5rem; padding-left: 1.2rem;">
+                <li><strong>slack-mcp</strong> &mdash; <code>zencoderai/slack-mcp:latest</code></li>
+              </ul>
+            </div>
+          </details>
+        </div>
+
+        <div>
+          <h3 style="margin-bottom: 1rem;">F5 BIG-IP Tool Catalog (28 tools)</h3>
+          <div class="grid grid-2" style="gap: 0.75rem;">
+            <div class="card" style="padding: 1rem;">
+              <h3 style="font-size: 0.85rem;">Pools <span class="tag tag-blue" style="font-size: 0.65rem;">8 tools</span></h3>
+              <p style="font-size: 0.8rem;">list, get, create, delete, members, add/remove member, set state</p>
+            </div>
+            <div class="card" style="padding: 1rem;">
+              <h3 style="font-size: 0.85rem;">Virtual Servers <span class="tag tag-purple" style="font-size: 0.65rem;">4 tools</span></h3>
+              <p style="font-size: 0.8rem;">list, get, create, delete</p>
+            </div>
+            <div class="card" style="padding: 1rem;">
+              <h3 style="font-size: 0.85rem;">Nodes <span class="tag tag-green" style="font-size: 0.65rem;">5 tools</span></h3>
+              <p style="font-size: 0.8rem;">list, get, create, delete, set_state</p>
+            </div>
+            <div class="card" style="padding: 1rem;">
+              <h3 style="font-size: 0.85rem;">Monitors <span class="tag tag-orange" style="font-size: 0.65rem;">4 tools</span></h3>
+              <p style="font-size: 0.8rem;">list, http, https, tcp</p>
+            </div>
+            <div class="card" style="padding: 1rem;">
+              <h3 style="font-size: 0.85rem;">Configs <span class="tag tag-pink" style="font-size: 0.65rem;">4 tools</span></h3>
+              <p style="font-size: 0.8rem;">iRules, SSL certs</p>
+            </div>
+            <div class="card" style="padding: 1rem;">
+              <h3 style="font-size: 0.85rem;">System <span class="tag tag-cyan" style="font-size: 0.65rem;">4 tools</span></h3>
+              <p style="font-size: 0.8rem;">info, failover, perf, sync</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 3rem;">
+        <div class="section-header">
+          <span class="section-label">Observability</span>
+          <h2>Tracing & Monitoring</h2>
+        </div>
+        <div class="flow-diagram">
+          <div class="flow-box" style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3);">
+            <h4>Agent Request</h4>
+            <p>LLM call via kagent</p>
+          </div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box" style="background: rgba(129, 140, 248, 0.1); border: 1px solid rgba(129, 140, 248, 0.3);">
+            <h4>AgentGateway</h4>
+            <p>Enriches spans</p>
+          </div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box" style="background: rgba(251, 146, 60, 0.1); border: 1px solid rgba(251, 146, 60, 0.3);">
+            <h4>OTEL Collector</h4>
+            <p>gRPC :4317</p>
+          </div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box" style="background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.3);">
+            <h4>Langfuse</h4>
+            <p>Traces & analytics</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- A2A Protocol Section -->
+  <section id="a2a" style="padding-top: 2rem;">
+    <div class="container reveal">
+      <div class="section-header">
+        <span class="section-label">Protocol Deep Dive</span>
+        <h2>Agent-to-Agent (A2A)</h2>
+        <p>How bots communicate with kagent agents using JSON-RPC 2.0 over HTTP.</p>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-dots"><span></span><span></span><span></span></div>
+            <span class="code-filename">Send a message to an agent</span>
+          </div>
+          <pre><code><span class="keyword">POST</span> <span class="string">/api/a2a/kagent/telegram-k8s-agent/</span>
+<span class="key">Content-Type</span>: application/json
+
+{
+  <span class="key">"jsonrpc"</span>: <span class="string">"2.0"</span>,
+  <span class="key">"id"</span>: <span class="string">"msg-001"</span>,
+  <span class="key">"method"</span>: <span class="string">"message/send"</span>,
+  <span class="key">"params"</span>: {
+    <span class="key">"message"</span>: {
+      <span class="key">"role"</span>: <span class="string">"user"</span>,
+      <span class="key">"messageId"</span>: <span class="string">"abc-123"</span>,
+      <span class="key">"contextId"</span>: <span class="string">"user-42"</span>,
+      <span class="key">"parts"</span>: [
+        { <span class="key">"kind"</span>: <span class="string">"text"</span>,
+          <span class="key">"text"</span>: <span class="string">"List all pods in kagent"</span> }
+      ]
+    }
+  }
+}</code></pre>
+        </div>
+
+        <div>
+          <div class="card" style="margin-bottom: 1rem;">
+            <h3>Key Protocol Details</h3>
+            <ul style="list-style: none; font-size: 0.9rem; color: var(--text-muted); line-height: 2;">
+              <li><span style="color: var(--accent);">method</span> &mdash; Always <code>message/send</code></li>
+              <li><span style="color: var(--accent);">parts[].kind</span> &mdash; Use <code>kind</code>, not <code>type</code></li>
+              <li><span style="color: var(--accent);">contextId</span> &mdash; Per-user session tracking</li>
+              <li><span style="color: var(--accent);">URL</span> &mdash; Trailing slash required!</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h3>HITL Approval Flow</h3>
+            <ol style="padding-left: 1.2rem; font-size: 0.9rem; color: var(--text-muted); line-height: 2;">
+              <li>Agent requests tool approval</li>
+              <li>Bot renders approve/reject buttons</li>
+              <li>User clicks a button</li>
+              <li>Bot sends decision via A2A DataPart</li>
+              <li>Agent proceeds or aborts</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>
+      <strong>k8s-iceman</strong> &mdash; Built with kagent, ArgoCD, Vault, and Istio ambient on Talos Linux.<br>
+      <a href="https://github.com/ProfessorSeb/k8s-iceman">GitHub</a> &middot;
+      <a href="https://kagent.dev">kagent.dev</a> &middot;
+      <a href="https://solo.io">Solo.io</a>
+    </p>
+  </footer>
+
+  <script>
+    // Tab switching
+    function switchTab(e, panelId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      e.target.classList.add('active');
+      document.getElementById(panelId).classList.add('active');
+    }
+
+    // Scroll reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Close mobile nav on link click
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      link.addEventListener('click', () => {
+        document.querySelector('.nav-links').classList.remove('open');
+      });
+    });
+  </script>
+</body>
+</html>
