@@ -1,0 +1,95 @@
+# Vault MCP Server Deployment
+# Runs the HashiCorp vault-mcp-server in HTTP mode for kagent integration.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-mcp-server
+  namespace: kagent
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault-mcp-server
+  namespace: kagent
+  labels:
+    app: vault-mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault-mcp-server
+  template:
+    metadata:
+      labels:
+        app: vault-mcp-server
+    spec:
+      serviceAccountName: vault-mcp-server
+      containers:
+        - name: vault-mcp-server
+          image: docker.io/sebbycorp/vault-mcp-server:latest
+          imagePullPolicy: Always
+          command: ["./vault-mcp-server", "http"]
+          args:
+            - --transport-port=8080
+          ports:
+            - containerPort: 8080
+          env:
+            - name: VAULT_ADDR
+              value: "http://vault.vault.svc.cluster.local:8200"
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vault-mcp-credentials
+                  key: VAULT_TOKEN
+            - name: TRANSPORT_HOST
+              value: "0.0.0.0"
+            - name: TRANSPORT_PORT
+              value: "8080"
+            - name: MCP_CORS_MODE
+              value: "disabled"
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-mcp-server
+  namespace: kagent
+  labels:
+    app: vault-mcp-server
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: vault-mcp-server
+  type: ClusterIP
+---
+# RemoteMCPServer: kagent discovers Vault tools via this MCP endpoint
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: vault-mcp
+  namespace: kagent
+spec:
+  description: "HashiCorp Vault MCP server — secrets, mounts, and PKI certificate management"
+  url: "http://vault-mcp-server.kagent:8080/mcp"
+  timeout: "30s"
+  sseReadTimeout: "5m0s"
