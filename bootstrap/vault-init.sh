@@ -122,6 +122,32 @@ kubectl exec -n ${VAULT_NAMESPACE} ${VAULT_POD} -- \
   env VAULT_TOKEN="${VAULT_TOKEN}" \
   vault kv put secret/kagent/llm api-key="${LLM_API_KEY}"
 
+# Slack bot credentials
+echo ""
+read -sp "  Enter Slack Bot Token (xoxb-...): " SLACK_BOT_TOKEN
+echo ""
+read -sp "  Enter Slack App Token (xapp-...): " SLACK_APP_TOKEN
+echo ""
+read -p "  Enter Slack Team ID: " SLACK_TEAM_ID
+read -p "  Enter Slack Channel IDs (comma-separated): " SLACK_CHANNEL_IDS
+
+kubectl exec -n ${VAULT_NAMESPACE} ${VAULT_POD} -- \
+  env VAULT_TOKEN="${VAULT_TOKEN}" \
+  vault kv put secret/slack \
+    bot_token="${SLACK_BOT_TOKEN}" \
+    app_token="${SLACK_APP_TOKEN}" \
+    team_id="${SLACK_TEAM_ID}" \
+    channel_ids="${SLACK_CHANNEL_IDS}"
+
+# GitHub PAT
+echo ""
+read -sp "  Enter GitHub Personal Access Token: " GITHUB_TOKEN
+echo ""
+
+kubectl exec -n ${VAULT_NAMESPACE} ${VAULT_POD} -- \
+  env VAULT_TOKEN="${VAULT_TOKEN}" \
+  vault kv put secret/github token="${GITHUB_TOKEN}"
+
 echo ""
 echo "============================================"
 echo " Vault Configuration Complete!"
@@ -129,6 +155,8 @@ echo "============================================"
 echo ""
 echo "Secrets stored:"
 echo "  - secret/kagent/llm (api-key)"
+echo "  - secret/slack (bot_token, app_token)"
+echo "  - secret/github (token)"
 echo ""
 echo "To add more secrets later:"
 echo "  kubectl exec -n vault vault-0 -- env VAULT_TOKEN=<token> vault kv put secret/<path> <key>=<value>"
