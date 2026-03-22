@@ -3,28 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>k8s-iceman | AI-Powered Kubernetes Platform</title>
+  <title>k8s-iceman | AI-Powered Infrastructure Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0a0e17;
-      --bg-card: #111827;
-      --bg-card-hover: #1a2332;
-      --border: #1e293b;
-      --text: #e2e8f0;
-      --text-muted: #94a3b8;
-      --accent: #38bdf8;
-      --accent2: #818cf8;
-      --accent3: #a78bfa;
-      --green: #34d399;
-      --orange: #fb923c;
-      --pink: #f472b6;
-      --red: #f87171;
-      --cyan: #22d3ee;
+      --bg: #f8f9fc;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f0f4ff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --accent: #2563eb;
+      --accent2: #7c3aed;
+      --accent3: #9333ea;
+      --green: #059669;
+      --orange: #ea580c;
+      --pink: #db2777;
+      --red: #dc2626;
+      --cyan: #0891b2;
       --radius: 12px;
-      --glow: 0 0 40px rgba(56, 189, 248, 0.15);
+      --glow: 0 4px 24px rgba(37, 99, 235, 0.10);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -43,31 +43,31 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
-    /* Animated background grid */
+    /* Subtle grid pattern */
     .bg-grid {
       position: fixed;
       inset: 0;
       background-image:
-        linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
+        linear-gradient(rgba(37, 99, 235, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37, 99, 235, 0.04) 1px, transparent 1px);
       background-size: 60px 60px;
       z-index: 0;
       pointer-events: none;
     }
 
-    /* Floating orbs */
+    /* Floating orbs - softer for light theme */
     .orb {
       position: fixed;
       border-radius: 50%;
-      filter: blur(80px);
-      opacity: 0.4;
+      filter: blur(100px);
+      opacity: 0.3;
       z-index: 0;
       pointer-events: none;
       animation: float 20s ease-in-out infinite;
     }
-    .orb-1 { width: 400px; height: 400px; background: rgba(56, 189, 248, 0.15); top: 10%; left: -5%; animation-delay: 0s; }
-    .orb-2 { width: 350px; height: 350px; background: rgba(129, 140, 248, 0.12); top: 50%; right: -5%; animation-delay: -7s; }
-    .orb-3 { width: 300px; height: 300px; background: rgba(167, 139, 250, 0.1); bottom: 10%; left: 30%; animation-delay: -14s; }
+    .orb-1 { width: 500px; height: 500px; background: rgba(37, 99, 235, 0.12); top: 5%; left: -5%; animation-delay: 0s; }
+    .orb-2 { width: 400px; height: 400px; background: rgba(124, 58, 237, 0.08); top: 50%; right: -5%; animation-delay: -7s; }
+    .orb-3 { width: 350px; height: 350px; background: rgba(5, 150, 105, 0.06); bottom: 10%; left: 30%; animation-delay: -14s; }
 
     @keyframes float {
       0%, 100% { transform: translate(0, 0) scale(1); }
@@ -83,7 +83,7 @@
       right: 0;
       z-index: 100;
       padding: 1rem 2rem;
-      background: rgba(10, 14, 23, 0.8);
+      background: rgba(248, 249, 252, 0.85);
       backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--border);
       display: flex;
@@ -122,7 +122,7 @@
 
     .nav-links a:hover {
       color: var(--text);
-      background: rgba(56, 189, 248, 0.1);
+      background: rgba(37, 99, 235, 0.08);
     }
 
     .nav-hamburger {
@@ -152,8 +152,8 @@
       align-items: center;
       gap: 0.5rem;
       padding: 0.4rem 1rem;
-      background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.2);
+      background: rgba(37, 99, 235, 0.08);
+      border: 1px solid rgba(37, 99, 235, 0.2);
       border-radius: 999px;
       font-size: 0.8rem;
       color: var(--accent);
@@ -220,12 +220,12 @@
     .btn-primary {
       background: linear-gradient(135deg, var(--accent), var(--accent2));
       color: #fff;
-      box-shadow: 0 4px 20px rgba(56, 189, 248, 0.3);
+      box-shadow: 0 4px 20px rgba(37, 99, 235, 0.25);
     }
 
     .btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(56, 189, 248, 0.4);
+      box-shadow: 0 8px 30px rgba(37, 99, 235, 0.35);
     }
 
     .btn-outline {
@@ -236,7 +236,7 @@
 
     .btn-outline:hover {
       border-color: var(--accent);
-      background: rgba(56, 189, 248, 0.05);
+      background: rgba(37, 99, 235, 0.05);
     }
 
     @keyframes fadeInUp {
@@ -248,39 +248,15 @@
     .hero-diagram {
       margin-top: 4rem;
       width: 100%;
-      max-width: 900px;
+      max-width: 1000px;
       animation: fadeInUp 0.8s ease 0.4s both;
     }
 
-    .arch-flow {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      padding: 2rem;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
+    .hero-diagram img {
+      width: 100%;
+      height: auto;
       border-radius: var(--radius);
-    }
-
-    .arch-node {
-      padding: 0.6rem 1.2rem;
-      border-radius: 8px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .arch-node.user { background: rgba(244, 114, 182, 0.15); color: var(--pink); border: 1px solid rgba(244, 114, 182, 0.3); }
-    .arch-node.bot { background: rgba(34, 211, 238, 0.15); color: var(--cyan); border: 1px solid rgba(34, 211, 238, 0.3); }
-    .arch-node.agent { background: rgba(56, 189, 248, 0.15); color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.3); }
-    .arch-node.infra { background: rgba(52, 211, 153, 0.15); color: var(--green); border: 1px solid rgba(52, 211, 153, 0.3); }
-    .arch-node.k8s { background: rgba(129, 140, 248, 0.15); color: var(--accent2); border: 1px solid rgba(129, 140, 248, 0.3); }
-
-    .arch-arrow {
-      color: var(--text-muted);
-      font-size: 1.2rem;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
     }
 
     /* Sections */
@@ -356,7 +332,7 @@
 
     .card:hover {
       background: var(--bg-card-hover);
-      border-color: rgba(56, 189, 248, 0.3);
+      border-color: rgba(37, 99, 235, 0.3);
       transform: translateY(-4px);
       box-shadow: var(--glow);
     }
@@ -401,12 +377,12 @@
       font-family: 'JetBrains Mono', monospace;
     }
 
-    .tag-blue { background: rgba(56, 189, 248, 0.15); color: var(--accent); }
-    .tag-purple { background: rgba(129, 140, 248, 0.15); color: var(--accent2); }
-    .tag-green { background: rgba(52, 211, 153, 0.15); color: var(--green); }
-    .tag-orange { background: rgba(251, 146, 60, 0.15); color: var(--orange); }
-    .tag-pink { background: rgba(244, 114, 182, 0.15); color: var(--pink); }
-    .tag-cyan { background: rgba(34, 211, 238, 0.15); color: var(--cyan); }
+    .tag-blue { background: rgba(37, 99, 235, 0.1); color: var(--accent); }
+    .tag-purple { background: rgba(124, 58, 237, 0.1); color: var(--accent2); }
+    .tag-green { background: rgba(5, 150, 105, 0.1); color: var(--green); }
+    .tag-orange { background: rgba(234, 88, 12, 0.1); color: var(--orange); }
+    .tag-pink { background: rgba(219, 39, 119, 0.1); color: var(--pink); }
+    .tag-cyan { background: rgba(8, 145, 178, 0.1); color: var(--cyan); }
 
     /* Flow / Pipeline section */
     .pipeline {
@@ -449,12 +425,12 @@
       border: 2px solid;
     }
 
-    .pipeline-dot.wave0 { background: rgba(56, 189, 248, 0.15); border-color: var(--accent); color: var(--accent); }
-    .pipeline-dot.wave1 { background: rgba(129, 140, 248, 0.15); border-color: var(--accent2); color: var(--accent2); }
-    .pipeline-dot.wave2 { background: rgba(167, 139, 250, 0.15); border-color: var(--accent3); color: var(--accent3); }
-    .pipeline-dot.wave3 { background: rgba(52, 211, 153, 0.15); border-color: var(--green); color: var(--green); }
-    .pipeline-dot.wave4 { background: rgba(251, 146, 60, 0.15); border-color: var(--orange); color: var(--orange); }
-    .pipeline-dot.wave5 { background: rgba(244, 114, 182, 0.15); border-color: var(--pink); color: var(--pink); }
+    .pipeline-dot.wave0 { background: rgba(37, 99, 235, 0.1); border-color: var(--accent); color: var(--accent); }
+    .pipeline-dot.wave1 { background: rgba(124, 58, 237, 0.1); border-color: var(--accent2); color: var(--accent2); }
+    .pipeline-dot.wave2 { background: rgba(147, 51, 234, 0.1); border-color: var(--accent3); color: var(--accent3); }
+    .pipeline-dot.wave3 { background: rgba(5, 150, 105, 0.1); border-color: var(--green); color: var(--green); }
+    .pipeline-dot.wave4 { background: rgba(234, 88, 12, 0.1); border-color: var(--orange); color: var(--orange); }
+    .pipeline-dot.wave5 { background: rgba(219, 39, 119, 0.1); border-color: var(--pink); color: var(--pink); }
 
     .pipeline-content h4 {
       font-size: 1rem;
@@ -494,7 +470,7 @@
     }
 
     .tab-btn.active {
-      background: rgba(56, 189, 248, 0.15);
+      background: rgba(37, 99, 235, 0.1);
       color: var(--accent);
     }
 
@@ -512,8 +488,8 @@
 
     /* Code blocks */
     .code-block {
-      background: #0d1117;
-      border: 1px solid var(--border);
+      background: #1e293b;
+      border: 1px solid #334155;
       border-radius: 10px;
       overflow: hidden;
     }
@@ -523,8 +499,8 @@
       align-items: center;
       justify-content: space-between;
       padding: 0.6rem 1rem;
-      background: rgba(255, 255, 255, 0.03);
-      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid #334155;
     }
 
     .code-dots {
@@ -544,7 +520,7 @@
 
     .code-filename {
       font-size: 0.75rem;
-      color: var(--text-muted);
+      color: #94a3b8;
       font-family: 'JetBrains Mono', monospace;
     }
 
@@ -556,15 +532,15 @@
     }
 
     .code-block code {
-      color: var(--text-muted);
+      color: #94a3b8;
     }
 
-    .code-block .keyword { color: var(--pink); }
-    .code-block .string { color: var(--green); }
+    .code-block .keyword { color: #f472b6; }
+    .code-block .string { color: #34d399; }
     .code-block .comment { color: #6b7280; }
-    .code-block .key { color: var(--accent); }
-    .code-block .value { color: var(--orange); }
-    .code-block .type { color: var(--accent2); }
+    .code-block .key { color: #38bdf8; }
+    .code-block .value { color: #fb923c; }
+    .code-block .type { color: #818cf8; }
 
     /* Stats banner */
     .stats {
@@ -621,10 +597,10 @@
     .flow-box h4 { font-size: 0.85rem; margin-bottom: 0.25rem; }
     .flow-box p { font-size: 0.7rem; color: var(--text-muted); }
 
-    .flow-box.vault { background: rgba(251, 146, 60, 0.1); border: 1px solid rgba(251, 146, 60, 0.3); }
-    .flow-box.eso { background: rgba(129, 140, 248, 0.1); border: 1px solid rgba(129, 140, 248, 0.3); }
-    .flow-box.secret { background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.3); }
-    .flow-box.pod { background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .flow-box.vault { background: rgba(234, 88, 12, 0.08); border: 1px solid rgba(234, 88, 12, 0.25); }
+    .flow-box.eso { background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(124, 58, 237, 0.25); }
+    .flow-box.secret { background: rgba(5, 150, 105, 0.08); border: 1px solid rgba(5, 150, 105, 0.25); }
+    .flow-box.pod { background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.25); }
 
     .flow-arrow {
       font-size: 1.5rem;
@@ -641,7 +617,7 @@
     }
 
     details[open] {
-      border-color: rgba(56, 189, 248, 0.3);
+      border-color: rgba(37, 99, 235, 0.3);
     }
 
     summary {
@@ -670,7 +646,7 @@
       content: '-';
     }
 
-    summary:hover { background: rgba(56, 189, 248, 0.05); }
+    summary:hover { background: rgba(37, 99, 235, 0.04); }
 
     details .detail-content {
       padding: 0 1.25rem 1.25rem;
@@ -690,7 +666,7 @@
     .network-table th {
       text-align: left;
       padding: 0.75rem 1rem;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 2px solid var(--border);
       color: var(--text-muted);
       font-weight: 600;
       font-size: 0.75rem;
@@ -700,16 +676,16 @@
 
     .network-table td {
       padding: 0.75rem 1rem;
-      border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+      border-bottom: 1px solid var(--border);
     }
 
     .network-table tr:hover td {
-      background: rgba(56, 189, 248, 0.03);
+      background: rgba(37, 99, 235, 0.03);
     }
 
     .network-table code {
       font-size: 0.8rem;
-      background: rgba(56, 189, 248, 0.1);
+      background: rgba(37, 99, 235, 0.08);
       padding: 0.15rem 0.5rem;
       border-radius: 4px;
       color: var(--accent);
@@ -758,7 +734,7 @@
         top: 100%;
         left: 0;
         right: 0;
-        background: rgba(10, 14, 23, 0.95);
+        background: rgba(248, 249, 252, 0.95);
         backdrop-filter: blur(20px);
         flex-direction: column;
         padding: 1rem;
@@ -775,9 +751,6 @@
 
       .flow-diagram { flex-direction: column; }
       .flow-arrow { transform: rotate(90deg); }
-
-      .arch-flow { flex-direction: column; gap: 0.5rem; }
-      .arch-arrow { transform: rotate(90deg); }
 
       .pipeline::before { left: 18px; }
       .pipeline-dot { width: 38px; min-width: 38px; height: 38px; font-size: 0.75rem; }
@@ -797,7 +770,7 @@
         <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="url(#navGrad)"/>
         <path d="M2 17l10 5 10-5" stroke="url(#navGrad)" opacity="0.5"/>
         <path d="M2 12l10 5 10-5" stroke="url(#navGrad)" opacity="0.75"/>
-        <defs><linearGradient id="navGrad" x1="0" y1="0" x2="24" y2="24"><stop stop-color="#38bdf8"/><stop offset="1" stop-color="#818cf8"/></linearGradient></defs>
+        <defs><linearGradient id="navGrad" x1="0" y1="0" x2="24" y2="24"><stop stop-color="#2563eb"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs>
       </svg>
       k8s-iceman
     </div>
@@ -819,14 +792,14 @@
   <section class="hero" id="top">
     <div class="hero-badge">
       <span class="dot"></span>
-      Talos Linux on Proxmox &middot; 2 Nodes
+      Infrastructure AI Agents &middot; Talos Linux on Proxmox
     </div>
     <h1>
-      <span class="gradient">AI-Powered</span><br>
-      Kubernetes Platform
+      <span class="gradient">AI Agents</span> for<br>
+      Infrastructure Operations
     </h1>
     <p>
-      A GitOps-managed cluster running kagent AI agents, Istio ambient mesh, HashiCorp Vault, and multi-channel chat bots &mdash; all orchestrated by ArgoCD.
+      Kubernetes-native AI agents that manage your infrastructure through natural language. Powered by kagent, MCP tools, and the A2A protocol &mdash; deployed via GitOps.
     </p>
     <div class="hero-buttons">
       <a href="https://github.com/ProfessorSeb/k8s-iceman" class="btn btn-primary">
@@ -837,17 +810,7 @@
     </div>
 
     <div class="hero-diagram">
-      <div class="arch-flow">
-        <span class="arch-node user">You</span>
-        <span class="arch-arrow">&rarr;</span>
-        <span class="arch-node bot">Telegram / Slack / WhatsApp</span>
-        <span class="arch-arrow">&rarr;</span>
-        <span class="arch-node agent">kagent A2A</span>
-        <span class="arch-arrow">&rarr;</span>
-        <span class="arch-node k8s">Kubernetes API</span>
-        <span class="arch-arrow">&rarr;</span>
-        <span class="arch-node infra">Cluster</span>
-      </div>
+      <img src="kagent_fanout.gif" alt="Architecture: You talk to Telegram, Slack, or WhatsApp which connects via kagent A2A to infrastructure and cloud services including Kubernetes, AWS, GCP, Azure, F5 BIG-IP, Fortinet, Palo Alto, Vault, Terraform, Docker, and more">
     </div>
   </section>
 
@@ -885,7 +848,7 @@
 
       <div class="grid grid-3">
         <div class="card">
-          <div class="card-icon" style="background: rgba(56, 189, 248, 0.15); color: var(--accent);">
+          <div class="card-icon" style="background: rgba(37, 99, 235, 0.1); color: var(--accent);">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
           </div>
           <h3>kagent AI Agents</h3>
@@ -898,7 +861,7 @@
         </div>
 
         <div class="card">
-          <div class="card-icon" style="background: rgba(52, 211, 153, 0.15); color: var(--green);">
+          <div class="card-icon" style="background: rgba(5, 150, 105, 0.1); color: var(--green);">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </div>
           <h3>HashiCorp Vault</h3>
@@ -911,7 +874,7 @@
         </div>
 
         <div class="card">
-          <div class="card-icon" style="background: rgba(129, 140, 248, 0.15); color: var(--accent2);">
+          <div class="card-icon" style="background: rgba(124, 58, 237, 0.1); color: var(--accent2);">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
           </div>
           <h3>Multi-Channel Bots</h3>
@@ -924,7 +887,7 @@
         </div>
 
         <div class="card">
-          <div class="card-icon" style="background: rgba(244, 114, 182, 0.15); color: var(--pink);">
+          <div class="card-icon" style="background: rgba(219, 39, 119, 0.1); color: var(--pink);">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
           </div>
           <h3>Istio Ambient Mesh</h3>
@@ -937,7 +900,7 @@
         </div>
 
         <div class="card">
-          <div class="card-icon" style="background: rgba(251, 146, 60, 0.15); color: var(--orange);">
+          <div class="card-icon" style="background: rgba(234, 88, 12, 0.1); color: var(--orange);">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
           </div>
           <h3>ArgoCD GitOps</h3>
@@ -950,7 +913,7 @@
         </div>
 
         <div class="card">
-          <div class="card-icon" style="background: rgba(34, 211, 238, 0.15); color: var(--cyan);">
+          <div class="card-icon" style="background: rgba(8, 145, 178, 0.1); color: var(--cyan);">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
           </div>
           <h3>AgentGateway</h3>
@@ -1051,7 +1014,7 @@
               <h3>FortiGate Agent</h3>
               <p>Manages FortiGate firewall appliances via natural language. Handles firewall policies, NAT rules, VIPs, routing, DHCP, wireless clients, and device discovery.</p>
               <div class="tags">
-                <span class="tag tag-red" style="background: rgba(248, 113, 113, 0.15); color: var(--red);">firewall</span>
+                <span class="tag tag-pink">firewall</span>
                 <span class="tag tag-orange">NAT</span>
                 <span class="tag tag-blue">VIP</span>
                 <span class="tag tag-green">wireless</span>
@@ -1141,13 +1104,13 @@
     <div class="container reveal">
       <div class="section-header">
         <span class="section-label">Chat Interfaces</span>
-        <h2>Talk to Your Cluster</h2>
+        <h2>Talk to Your Infrastructure</h2>
         <p>Three production bots connect users to AI agents via familiar messaging platforms. All support human-in-the-loop approval.</p>
       </div>
 
       <div class="grid grid-3">
         <div class="card">
-          <div class="card-icon" style="background: rgba(34, 211, 238, 0.15); color: var(--cyan); font-size: 1.8rem;">
+          <div class="card-icon" style="background: rgba(8, 145, 178, 0.1); color: var(--cyan); font-size: 1.8rem;">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
           </div>
           <h3>Telegram Bot</h3>
@@ -1174,7 +1137,7 @@
         </div>
 
         <div class="card">
-          <div class="card-icon" style="background: rgba(129, 140, 248, 0.15); color: var(--accent2); font-size: 1.8rem;">
+          <div class="card-icon" style="background: rgba(124, 58, 237, 0.1); color: var(--accent2); font-size: 1.8rem;">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
           </div>
           <h3>Slack Bot (AgentEvals)</h3>
@@ -1202,7 +1165,7 @@
         </div>
 
         <div class="card">
-          <div class="card-icon" style="background: rgba(52, 211, 153, 0.15); color: var(--green); font-size: 1.8rem;">
+          <div class="card-icon" style="background: rgba(5, 150, 105, 0.1); color: var(--green); font-size: 1.8rem;">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
           </div>
           <h3>WhatsApp Bot</h3>
@@ -1607,22 +1570,22 @@
           <h2>Tracing & Monitoring</h2>
         </div>
         <div class="flow-diagram">
-          <div class="flow-box" style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3);">
+          <div class="flow-box" style="background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.25);">
             <h4>Agent Request</h4>
             <p>LLM call via kagent</p>
           </div>
           <div class="flow-arrow">&rarr;</div>
-          <div class="flow-box" style="background: rgba(129, 140, 248, 0.1); border: 1px solid rgba(129, 140, 248, 0.3);">
+          <div class="flow-box" style="background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(124, 58, 237, 0.25);">
             <h4>AgentGateway</h4>
             <p>Enriches spans</p>
           </div>
           <div class="flow-arrow">&rarr;</div>
-          <div class="flow-box" style="background: rgba(251, 146, 60, 0.1); border: 1px solid rgba(251, 146, 60, 0.3);">
+          <div class="flow-box" style="background: rgba(234, 88, 12, 0.08); border: 1px solid rgba(234, 88, 12, 0.25);">
             <h4>OTEL Collector</h4>
             <p>gRPC :4317</p>
           </div>
           <div class="flow-arrow">&rarr;</div>
-          <div class="flow-box" style="background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.3);">
+          <div class="flow-box" style="background: rgba(5, 150, 105, 0.08); border: 1px solid rgba(5, 150, 105, 0.25);">
             <h4>Langfuse</h4>
             <p>Traces & analytics</p>
           </div>
@@ -1696,7 +1659,7 @@
   <!-- Footer -->
   <footer>
     <p>
-      <strong>k8s-iceman</strong> &mdash; Built with kagent, ArgoCD, Vault, and Istio ambient on Talos Linux.<br>
+      <strong>k8s-iceman</strong> &mdash; Infrastructure AI Agents powered by kagent, ArgoCD, Vault, and Istio ambient on Talos Linux.<br>
       <a href="https://github.com/ProfessorSeb/k8s-iceman">GitHub</a> &middot;
       <a href="https://kagent.dev">kagent.dev</a> &middot;
       <a href="https://solo.io">Solo.io</a>
