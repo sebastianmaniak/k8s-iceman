@@ -2,7 +2,7 @@
 
 GitOps-managed Kubernetes cluster running on Talos Linux, powered by Argo CD.
 
-Deploys open-source tools from the Solo.io ecosystem: **Istio Ambient Mesh**, **kagent**, and **Agentgateway**. Secrets are managed by **HashiCorp Vault OSS** + **External Secrets Operator**.
+Deploys open-source tools from the Solo.io ecosystem: **Istio Ambient Mesh**, **kagent**, and **Agentgateway**. Secrets are managed by **HashiCorp Vault OSS** + **External Secrets Operator**. Observability via **OpenTelemetry Collector**.
 
 ## Table of Contents
 
@@ -17,6 +17,9 @@ Deploys open-source tools from the Solo.io ecosystem: **Istio Ambient Mesh**, **
 - [Telegram Bot](#telegram-bot)
 - [F5 BIG-IP Agent](#f5-bigip-agent)
 - [FortiGate Agent](#fortigate-agent)
+- [Moat Sandbox Coder Agent](#moat-sandbox-coder-agent)
+- [GitHub Agent](#github-agent)
+- [kagent Examples](#kagent-examples)
 - [CI/CD](#cicd)
 - [Making Changes (GitOps Workflow)](#making-changes-gitops-workflow)
 
@@ -73,13 +76,25 @@ k8s-iceman/
 │   ├── istio-cni.yaml               # [Wave 3] Istio CNI node agent
 │   ├── ztunnel.yaml                 # [Wave 3] Istio zero-trust tunnel
 │   ├── kagent-crds.yaml             # [Wave 4] kagent CRDs
-│   ├── kagent.yaml                  # [Wave 5] kagent AI agent framework
 │   ├── agentgateway-crds.yaml       # [Wave 4] agentgateway CRDs
+│   ├── kagent.yaml                  # [Wave 5] kagent AI agent framework
 │   ├── agentgateway.yaml            # [Wave 5] agentgateway AI proxy
-│   └── vault-config.yaml            # [Wave 6] SecretStore + ExternalSecrets
+│   ├── vault-config.yaml            # [Wave 6] SecretStore + ExternalSecrets
+│   ├── kagent-examples.yaml         # [Wave 6] kagent example agents + shared resources
+│   ├── agentgateway-config.yaml     # [Wave 7] Agentgateway Langfuse tracing config
+│   ├── github-agent.yaml            # [Wave 7] GitHub agent manifests
+│   ├── otel-collector.yaml          # [Wave 7] OpenTelemetry Collector
+│   ├── service-nodeports.yaml       # [Wave 7] NodePort services for F5 BIG-IP
+│   ├── slack-bot.yaml               # [Wave 7] Slack bot agent + deployment
+│   └── telegram-bot.yaml            # [Wave 7] Telegram bot agent + deployment
 ├── apps/telegram-bot-src/            # Telegram bot source code
 │   ├── main.py                      # Bot implementation (A2A + HITL)
 │   ├── requirements.txt             # Python dependencies
+│   └── Dockerfile                   # Container image build
+├── apps/slack-bot-src/               # Slack bot source code
+│   ├── slack_bot.py                 # Bot implementation (A2A + HITL)
+│   ├── requirements.txt             # Python dependencies
+│   ├── build.sh                     # Build helper script
 │   └── Dockerfile                   # Container image build
 ├── apps/f5-wrapper/                  # F5 BIG-IP API wrapper service
 │   ├── app/main.py                  # FastAPI entrypoint
@@ -87,6 +102,10 @@ k8s-iceman/
 │   ├── app/auth.py                  # F5 token management
 │   ├── app/utils/f5_client.py       # HTTP client for iControl REST
 │   ├── app/routers/                 # API routers (pools, nodes, VS, etc.)
+│   ├── requirements.txt             # Python dependencies
+│   └── Dockerfile                   # Container image build
+├── apps/fortigate-wrapper-src/       # FortiGate MCP wrapper source code
+│   ├── main.py                      # MCP server implementation
 │   ├── requirements.txt             # Python dependencies
 │   └── Dockerfile                   # Container image build
 ├── helm-values/                      # Helm value overrides (GitOps managed)
@@ -99,19 +118,52 @@ k8s-iceman/
 │   ├── kagent-crds/values.yaml
 │   ├── kagent/values.yaml           # References Vault-managed secret
 │   ├── agentgateway-crds/values.yaml
-│   └── agentgateway/values.yaml
+│   ├── agentgateway/values.yaml
+│   └── otel-collector/values.yaml   # OpenTelemetry Collector config
 ├── manifests/                        # Raw Kubernetes manifests
 │   ├── vault-config/
-│   │   ├── cluster-secret-store.yaml # ClusterSecretStore -> Vault
-│   │   └── external-secret-kagent.yaml # ExternalSecrets for LLM API keys
-│   ├── kagent-examples/
-│   │   ├── telegram-bot/            # Telegram bot agent + deployment
-│   │   ├── f5-agent/                # F5 BIG-IP agent + wrapper deployment
-│   │   └── human-in-the-loop/       # HITL approval examples
-│   └── service-nodeports/           # NodePort services for F5 BIG-IP
-│       ├── argocd-nodeport.yaml
-│       ├── vault-nodeport.yaml
-│       └── kagent-nodeport.yaml
+│   │   ├── cluster-secret-store.yaml          # ClusterSecretStore -> Vault
+│   │   ├── external-secret-kagent.yaml        # ExternalSecrets for LLM API keys
+│   │   ├── external-secret-langfuse-otel.yaml # Langfuse/OTel secrets
+│   │   └── external-secret-agentgateway-langfuse-otel.yaml
+│   ├── agentgateway-config/
+│   │   └── langfuse-tracing.yaml    # Agentgateway Langfuse tracing setup
+│   ├── github-agent/
+│   │   ├── 01-external-secret.yaml  # GitHub token from Vault
+│   │   ├── 02-github-mcp.yaml      # GitHub MCP server
+│   │   └── 03-agent.yaml           # GitHub agent (agentevals docs)
+│   ├── kagent-examples/             # Example kagent agents and patterns
+│   │   ├── 00-shared-resources.yaml # Shared ModelConfigs (openai-embed, etc.)
+│   │   ├── context-management/      # Context compaction examples
+│   │   ├── f5-agent/bigip/          # F5 BIG-IP agent + wrapper deployment
+│   │   ├── fortigate-agent/         # FortiGate firewall agent + MCP server
+│   │   ├── git-skills/              # Git-based skill loading examples
+│   │   ├── human-in-the-loop/       # HITL approval examples
+│   │   ├── memory/                  # Agent memory examples
+│   │   ├── moat-agent/              # Moat sandbox coder agent + MCP server
+│   │   ├── multi-runtime/           # Go + Python runtime examples
+│   │   ├── prompt-templates/        # Agent prompt template examples
+│   │   ├── telegram-f5-bot/         # Telegram bot for F5 agent
+│   │   ├── telegram-forti-bot/      # Telegram bot for FortiGate agent
+│   │   ├── tools/                   # Tool configuration examples
+│   │   └── vault-agent/             # Vault management agent
+│   ├── service-nodeports/           # NodePort services for F5 BIG-IP
+│   │   ├── argocd-nodeport.yaml
+│   │   ├── vault-nodeport.yaml
+│   │   └── kagent-nodeport.yaml
+│   ├── slack-bot/
+│   │   ├── 01-external-secret.yaml  # Pulls Slack credentials from Vault
+│   │   ├── 02-slack-mcp.yaml       # Slack MCP server (stdio transport)
+│   │   ├── 03-agent.yaml           # agentevals-agent with Slack + GitHub tools
+│   │   └── 04-deployment.yaml      # Slack bot Deployment (Socket Mode)
+│   └── telegram-bot/
+│       ├── external-secret.yaml     # Telegram token from Vault
+│       ├── serviceaccount.yaml      # Bot service account
+│       ├── agent.yaml               # Telegram K8s agent
+│       └── deployment.yaml          # Telegram bot Deployment
+├── docs/                             # GitHub Pages site
+│   ├── index.html                   # Landing page
+│   └── kagent_fanout.gif            # Demo animation
 ├── .github/workflows/                # CI/CD
 │   ├── telegram-bot-docker.yaml     # Build + push bot image to Docker Hub
 │   └── f5-wrapper-docker.yaml       # Build + push F5 wrapper image to Docker Hub
@@ -135,7 +187,8 @@ k8s-iceman/
 | External Secrets Operator | 2.0.1 | charts.external-secrets.io |
 | Istio (ambient) | 1.29.0 | istio-release.storage.googleapis.com/charts |
 | kagent | v0.8.0-beta6 | ghcr.io/kagent-dev/kagent/helm |
-| Agentgateway | v2.2.1 | ghcr.io/kgateway-dev/charts |
+| Agentgateway | v1.0.0-alpha.4 | cr.agentgateway.dev/charts |
+| OpenTelemetry Collector | 0.126.0 | ghcr.io/open-telemetry/opentelemetry-helm-charts |
 | Gateway API CRDs | v1.4.0 | kubernetes-sigs/gateway-api |
 
 ## Sync Wave Order
@@ -148,7 +201,8 @@ Argo CD deploys components in this order to respect dependencies:
 4. **Wave 3** - `istio-cni` + `ztunnel` (data plane, requires istiod)
 5. **Wave 4** - `kagent-crds` + `agentgateway-crds` (CRDs for Solo tools)
 6. **Wave 5** - `kagent` + `agentgateway` (applications, require their CRDs)
-7. **Wave 6** - `vault-config` (SecretStore + ExternalSecrets, requires Vault + ESO)
+7. **Wave 6** - `vault-config` + `kagent-examples` (SecretStore + ExternalSecrets + example agents)
+8. **Wave 7** - `otel-collector` + `agentgateway-config` + `github-agent` + `slack-bot` + `telegram-bot` + `service-nodeports`
 
 ## Quick Start
 
@@ -425,7 +479,7 @@ The agent is configured with:
 - **Context compaction** -- `tokenThreshold: 120000`, `eventRetentionSize: 80`, `overlapSize: 8` for managing long conversations
 - **System message** -- includes kagent built-in prompts for safety guardrails, tool usage best practices, and Kubernetes context
 
-**Agent manifest:** `manifests/kagent-examples/telegram-bot/02-agent.yaml`
+**Agent manifest:** `manifests/telegram-bot/agent.yaml`
 
 ### Deployment
 
@@ -437,7 +491,7 @@ The bot runs as a Deployment in the `kagent` namespace. It uses polling (no ingr
 - `TELEGRAM_BOT_TOKEN` -- from Vault via External Secrets (`secret/telegram`)
 - `KAGENT_A2A_URL` -- set in the deployment manifest (points to kagent-controller A2A endpoint)
 
-**Deployment manifest:** `manifests/kagent-examples/telegram-bot/03-deployment.yaml`
+**Deployment manifest:** `manifests/telegram-bot/deployment.yaml`
 
 ### Prerequisites
 
@@ -507,9 +561,9 @@ The F5 Wrapper Service is a thin FastAPI app that proxies iControl REST calls, e
 
 | File | Description |
 |------|-------------|
-| `manifests/kagent-examples/f5-agent/01-external-secret.yaml` | Pulls F5 credentials from Vault |
-| `manifests/kagent-examples/f5-agent/02-agent.yaml` | kagent Agent CRD with system prompt and tool config |
-| `manifests/kagent-examples/f5-agent/03-deployment.yaml` | Wrapper Deployment, Service (with OpenAPI annotation), NetworkPolicy |
+| `manifests/kagent-examples/f5-agent/bigip/01-external-secret.yaml` | Pulls F5 credentials from Vault |
+| `manifests/kagent-examples/f5-agent/bigip/02-agent.yaml` | kagent Agent CRD with system prompt and tool config |
+| `manifests/kagent-examples/f5-agent/bigip/03-deployment.yaml` | Wrapper Deployment, Service (with OpenAPI annotation), NetworkPolicy |
 
 ### Deployment
 
@@ -519,7 +573,7 @@ kubectl exec -n vault vault-0 -- env VAULT_TOKEN=<token> \
   vault kv put secret/f5 host="https://10.1.1.245" username="admin" password="<password>"
 
 # Apply the manifests
-kubectl apply -f manifests/kagent-examples/f5-agent/
+kubectl apply -f manifests/kagent-examples/f5-agent/bigip/
 
 # Verify the wrapper is running
 kubectl get pods -n kagent -l app=f5-wrapper
@@ -540,6 +594,119 @@ docker push sebbycorp/f5-wrapper:latest
 # Restart the deployment
 kubectl rollout restart deployment f5-wrapper -n kagent
 ```
+
+## FortiGate Agent
+
+An AI-powered agent for managing FortiGate firewalls through natural language, running natively in Kubernetes via the kagent framework. Uses a community FortiGate MCP server for tool discovery.
+
+### Agent Capabilities
+
+| Category | Operations |
+|----------|-----------|
+| **Firewall Policies** | List, get, enable, disable policies; create temporary block policies |
+| **NAT** | List central SNAT entries, IP pools, Virtual IPs (destination NAT) |
+| **Network Objects** | List address objects, address groups, services, service groups |
+| **Interfaces & Routing** | List network interfaces and static routes |
+| **System** | Status (hostname, firmware, serial, uptime), resource utilization, HA status |
+| **DHCP & Discovery** | List DHCP leases, detected/discovered devices, device fingerprinting |
+| **Wireless / FortiAP** | List wireless clients, SSIDs; disconnect clients; enable/disable SSIDs |
+
+### Safety & Guardrails
+
+- Confirms destructive operations before executing (disable policy, block device, disable SSID)
+- Prefers targeted actions (disconnect one client) over broad ones (disable entire SSID)
+- Starts with read-only discovery tools before taking control actions
+- Network policy restricts access to FortiGate management network only
+
+### Manifests
+
+| File | Description |
+|------|-------------|
+| `manifests/kagent-examples/fortigate-agent/01-external-secret.yaml` | Pulls FortiGate credentials from Vault |
+| `manifests/kagent-examples/fortigate-agent/02-agent.yaml` | kagent Agent CRD with FortiGate system prompt |
+| `manifests/kagent-examples/fortigate-agent/03-deployment.yaml` | FortiGate MCP server Deployment, Service, RemoteMCPServer, NetworkPolicy |
+
+### Deployment
+
+```bash
+# Store FortiGate credentials in Vault
+kubectl exec -n vault vault-0 -- env VAULT_TOKEN=<token> \
+  vault kv put secret/fortigate FORTI_HOST="https://172.16.x.x" FORTI_TOKEN="<api-token>"
+
+# Apply the manifests
+kubectl apply -f manifests/kagent-examples/fortigate-agent/
+
+# Verify the MCP server is running
+kubectl get pods -n kagent -l app=fortigate-mcp-server
+```
+
+## Moat Sandbox Coder Agent
+
+A sandboxed code execution agent that uses **Moat** to create isolated Linux environments. The agent can write, run, and test code in ephemeral sandboxes with snapshot/restore support.
+
+### How It Works
+
+The agent connects to an external Moat sandbox pool manager via a `RemoteMCPServer`. Each sandbox is a fully isolated Linux environment with Python 3, pip, git, and standard tools. Sandboxes have their own filesystem, CPU, and memory limits.
+
+### Agent Tools
+
+| Tool | Purpose |
+|------|---------|
+| `create_sandbox` / `delete_sandbox` | Manage sandbox lifecycle |
+| `shell` / `run_code` | Execute commands or code in sandboxes |
+| `write_file` / `read_file` / `list_files` | File operations inside sandboxes |
+| `take_snapshot` / `restore_snapshot` / `list_snapshots` | Checkpoint and rollback sandbox state |
+| `get_pool_status` / `list_sandboxes` | Pool and sandbox management |
+| `list_sessions` / `delete_session` | Session management for multi-conversation work |
+
+### Manifests
+
+| File | Description |
+|------|-------------|
+| `manifests/kagent-examples/moat-agent/01-moat-mcp.yaml` | RemoteMCPServer pointing to Moat pool manager |
+| `manifests/kagent-examples/moat-agent/02-moat-sandbox-coder.yaml` | Agent CRD with sandbox coding system prompt |
+
+### Deployment
+
+```bash
+# Requires an external Moat sandbox pool manager running and accessible
+# The MCP server URL is configured in 01-moat-mcp.yaml
+
+kubectl apply -f manifests/kagent-examples/moat-agent/
+```
+
+## GitHub Agent
+
+An agent for managing the agentevals documentation site (`agentevals-dev/website`). Creates issues, pull requests, and edits documentation via a GitHub MCP server.
+
+### Manifests
+
+| File | Description |
+|------|-------------|
+| `manifests/github-agent/01-external-secret.yaml` | Pulls GitHub token from Vault |
+| `manifests/github-agent/02-github-mcp.yaml` | GitHub MCP server |
+| `manifests/github-agent/03-agent.yaml` | GitHub agent with docs management tools |
+
+## kagent Examples
+
+The `manifests/kagent-examples/` directory contains reusable agent patterns and examples:
+
+| Directory | Description |
+|-----------|-------------|
+| `00-shared-resources.yaml` | Shared ModelConfigs (e.g., `openai-embed` for memory) |
+| `context-management/` | Context compaction configuration examples |
+| `f5-agent/bigip/` | F5 BIG-IP agent with wrapper deployment |
+| `fortigate-agent/` | FortiGate firewall agent with MCP server |
+| `git-skills/` | Loading agent skills from public/private git repos |
+| `human-in-the-loop/` | HITL approval patterns (tool approval, ask_user) |
+| `memory/` | Agent memory with vector-backed recall |
+| `moat-agent/` | Moat sandbox coder agent with remote MCP |
+| `multi-runtime/` | Go and Python agent runtime examples |
+| `prompt-templates/` | Templated agent system prompts |
+| `telegram-f5-bot/` | Telegram bot wired to the F5 agent |
+| `telegram-forti-bot/` | Telegram bot wired to the FortiGate agent |
+| `tools/` | Tool configuration patterns (full K8s, multi-agent, Istio) |
+| `vault-agent/` | Vault management agent |
 
 ## CI/CD
 
