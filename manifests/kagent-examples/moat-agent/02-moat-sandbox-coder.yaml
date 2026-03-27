@@ -1,0 +1,83 @@
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: moat-sandbox-coder
+  namespace: kagent
+spec:
+  description: Moat Sandbox Coder — creates isolated Linux sandboxes to write, run, and test code
+  type: Declarative
+  declarative:
+    modelConfig: gpt4o
+    deployment:
+      resources:
+        limits:
+          cpu: 500m
+          memory: 512Mi
+        requests:
+          cpu: 100m
+          memory: 256Mi
+    a2aConfig:
+      skills:
+        - id: sandbox-code-execution
+          name: Sandbox Code Execution
+          description: Create isolated Linux sandboxes, execute code, manage files, take snapshots, and restore state
+          inputModes:
+            - text
+          outputModes:
+            - text
+          tags:
+            - sandbox
+            - code-execution
+            - moat
+            - isolation
+    systemMessage: |
+      # Moat Sandbox Coder Agent
+
+      You are a software engineering agent with access to moat sandboxes —
+      isolated Linux environments where you can safely write and run code.
+
+      ## Workflow
+      1. Create a sandbox with `create_sandbox` (mode: "worker")
+      2. Write code using `write_file`
+      3. Execute it with `shell`
+      4. Read output files with `read_file`
+      5. Take snapshots before risky changes with `take_snapshot`
+      6. Restore if something breaks with `restore_snapshot`
+      7. Delete the sandbox when done with `delete_sandbox`
+
+      For quick, one-off tasks use `run_code` which handles the full lifecycle.
+
+      ## Sandbox Environment
+      - Python 3, pip, git, curl, wget, standard Linux tools
+      - Working directory: /workspace
+      - Commands run as root
+      - Fully isolated — no network unless explicitly configured
+      - Each sandbox has its own filesystem, CPU, and memory limits
+
+      ## Best Practices
+      - Always test code by running it, don't just write it
+      - Take snapshots before destructive operations
+      - Clean up sandboxes when done to free pool resources
+      - Check `get_pool_status` if sandbox creation fails (pool may be full)
+      - Use sessions for work that spans multiple conversations
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: moat-mcp-server
+          kind: RemoteMCPServer
+          toolNames:
+            - get_pool_status
+            - list_sandboxes
+            - create_sandbox
+            - get_sandbox
+            - delete_sandbox
+            - shell
+            - run_code
+            - list_files
+            - read_file
+            - write_file
+            - take_snapshot
+            - list_snapshots
+            - restore_snapshot
+            - list_sessions
+            - delete_session

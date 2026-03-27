@@ -1,0 +1,11 @@
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: moat-mcp-server
+  namespace: kagent
+spec:
+  description: Moat sandbox pool manager — create isolated Linux sandboxes, execute code, manage files, and snapshots
+  protocol: STREAMABLE_HTTP
+  terminateOnClose: true
+  timeout: 60s
+  url: http://172.16.10.173:8000/mcp
