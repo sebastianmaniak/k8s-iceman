@@ -167,6 +167,7 @@ k8s-iceman/
 ├── .github/workflows/                # CI/CD
 │   ├── telegram-bot-docker.yaml     # Build + push bot image to Docker Hub
 │   └── f5-wrapper-docker.yaml       # Build + push F5 wrapper image to Docker Hub
+├── blog-post-slack-agent.md          # Blog post: Building a Slack Bot with Kagent, MCP, and GitHub
 └── terraform/                        # Infrastructure as Code
     └── f5-bigip/                    # F5 BIG-IP VIP configuration
         ├── main.tf                  # Provider config
