@@ -188,7 +188,7 @@ k8s-iceman/
 | External Secrets Operator | 2.0.1 | charts.external-secrets.io |
 | Istio (ambient) | 1.29.0 | istio-release.storage.googleapis.com/charts |
 | kagent | v0.8.0-beta6 | ghcr.io/kagent-dev/kagent/helm |
-| Agentgateway | v1.0.0-alpha.4 | cr.agentgateway.dev/charts |
+| Agentgateway | v1.1.0 | cr.agentgateway.dev/charts |
 | OpenTelemetry Collector | 0.126.0 | ghcr.io/open-telemetry/opentelemetry-helm-charts |
 | Gateway API CRDs | v1.4.0 | kubernetes-sigs/gateway-api |
 
