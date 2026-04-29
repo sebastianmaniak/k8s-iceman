@@ -16,6 +16,12 @@ spec:
     helm:
       releaseName: istio-base
       valueFiles: []
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+        - .webhooks[]?.failurePolicy
   destination:
     server: https://kubernetes.default.svc
     namespace: istio-system

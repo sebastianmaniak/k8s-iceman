@@ -20,6 +20,12 @@ spec:
     - repoURL: https://github.com/ProfessorSeb/k8s-iceman.git
       targetRevision: main
       ref: values
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+        - .webhooks[]?.failurePolicy
   destination:
     server: https://kubernetes.default.svc
     namespace: istio-system
